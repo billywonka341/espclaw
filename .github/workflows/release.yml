@@ -48,6 +48,7 @@ jobs:
           #define TELEGRAM_ALLOWED_CHAT_ID "dummy_id"
           #define OPENAI_API_KEY "dummy_key"
           #define POLLING_INTERVAL_MS 1000
+          #define LLM_PROVIDER "openai"
           #define LLM_MODEL "gpt-3.5-turbo"
           #define SYSTEM_PROMPT "dummy prompt"
           #endif
