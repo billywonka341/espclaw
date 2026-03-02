@@ -83,6 +83,7 @@ String LLMClient::askOpenAI(const String &userMessage) {
   // Out-Of-Memory (OOM) crashes.
   JsonDocument filter;
   filter["choices"][0]["message"]["content"] = true;
+  filter["error"] = true; // Also catch API errors
 
   JsonDocument responseDoc;
   DeserializationError error = deserializeJson(
@@ -92,6 +93,12 @@ String LLMClient::askOpenAI(const String &userMessage) {
     Serial.print("LLM: JSON Parse Error: ");
     Serial.println(error.c_str());
     return String("Error parsing LLM response: ") + error.c_str();
+  }
+
+  // Check if the API returned an explicit error
+  if (responseDoc.containsKey("error")) {
+    String errMsg = responseDoc["error"]["message"] | "Unknown API Error";
+    return String("API Error: ") + errMsg;
   }
 
   const char *content = responseDoc["choices"][0]["message"]["content"];
@@ -118,7 +125,11 @@ String LLMClient::askAnthropic(const String &userMessage) {
 
   // Prepare JSON payload
   JsonDocument requestDoc;
-  requestDoc["model"] = LLM_MODEL;
+  String modelToUse = String(LLM_MODEL);
+  if (modelToUse == "gpt-3.5-turbo") {
+    modelToUse = "claude-3-haiku-20240307"; // Auto-correct default
+  }
+  requestDoc["model"] = modelToUse;
   requestDoc["max_tokens"] = 1024;
   requestDoc["system"] = SYSTEM_PROMPT;
 
@@ -153,6 +164,7 @@ String LLMClient::askAnthropic(const String &userMessage) {
   // Minimal filter
   JsonDocument filter;
   filter["content"][0]["text"] = true;
+  filter["error"] = true;
 
   JsonDocument responseDoc;
   DeserializationError error = deserializeJson(
@@ -162,6 +174,11 @@ String LLMClient::askAnthropic(const String &userMessage) {
     Serial.print("LLM (Anthropic): JSON Parse Error: ");
     Serial.println(error.c_str());
     return String("Error parsing LLM response: ") + error.c_str();
+  }
+
+  if (responseDoc.containsKey("error")) {
+    String errMsg = responseDoc["error"]["message"] | "Unknown API Error";
+    return String("API Error: ") + errMsg;
   }
 
   const char *content = responseDoc["content"][0]["text"];
@@ -204,7 +221,12 @@ String LLMClient::askGemini(const String &userMessage) {
   String requestBody;
   serializeJson(requestDoc, requestBody);
 
-  String url = String("/v1beta/models/") + LLM_MODEL +
+  String modelToUse = String(LLM_MODEL);
+  if (modelToUse == "gpt-3.5-turbo") {
+    modelToUse = "gemini-1.5-flash"; // Auto-correct default
+  }
+
+  String url = String("/v1beta/models/") + modelToUse +
                ":generateContent?key=" + OPENAI_API_KEY;
 
   client.print("POST ");
@@ -218,8 +240,12 @@ String LLMClient::askGemini(const String &userMessage) {
   client.println();
   client.print(requestBody);
 
+  bool isChunked = false;
   while (client.connected()) {
     String line = client.readStringUntil('\n');
+    if (line.startsWith("Transfer-Encoding: chunked")) {
+      isChunked = true;
+    }
     if (line == "\r") {
       break;
     }
@@ -228,15 +254,51 @@ String LLMClient::askGemini(const String &userMessage) {
   // Minimal filter
   JsonDocument filter;
   filter["candidates"][0]["content"]["parts"][0]["text"] = true;
+  filter["error"] = true;
 
   JsonDocument responseDoc;
-  DeserializationError error = deserializeJson(
-      responseDoc, client, DeserializationOption::Filter(filter));
+  DeserializationError error;
+
+  if (isChunked) {
+    // ArduinoJson struggles with raw chunked HTTP streams. We read the chunks
+    // manually.
+    String body = "";
+    while (client.connected()) {
+      String hexSize = client.readStringUntil('\n');
+      hexSize.trim();
+      if (hexSize.length() == 0)
+        continue;
+      long chunkSize = strtol(hexSize.c_str(), NULL, 16);
+      if (chunkSize == 0)
+        break;
+
+      size_t readLen = 0;
+      while (readLen < chunkSize && client.connected()) {
+        if (client.available()) {
+          char c = client.read();
+          body += c;
+          readLen++;
+        }
+      }
+      // Read the trailing \r\n after the chunk
+      client.readStringUntil('\n');
+    }
+    error = deserializeJson(responseDoc, body,
+                            DeserializationOption::Filter(filter));
+  } else {
+    error = deserializeJson(responseDoc, client,
+                            DeserializationOption::Filter(filter));
+  }
 
   if (error) {
     Serial.print("LLM (Gemini): JSON Parse Error: ");
     Serial.println(error.c_str());
     return String("Error parsing LLM response: ") + error.c_str();
+  }
+
+  if (responseDoc.containsKey("error")) {
+    String errMsg = responseDoc["error"]["message"] | "Unknown API Error";
+    return String("API Error: ") + errMsg;
   }
 
   const char *content =
