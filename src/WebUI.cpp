@@ -160,7 +160,15 @@ const char index_html[] PROGMEM = R"rawliteral(
             <div class="form-group"><label>WiFi Password</label><input type="password" id="c_pass" class="field"></div>
             <div class="form-group"><label>Telegram Bot Token</label><input type="password" id="c_tgToken" class="field"></div>
             <div class="form-group"><label>Telegram Chat ID</label><input type="text" id="c_tgChat" class="field"></div>
-            <div class="form-group"><label>OpenAI API Key</label><input type="password" id="c_aiKey" class="field"></div>
+            <div class="form-group">
+                <label>LLM Provider</label>
+                <select id="c_provider" class="field">
+                    <option value="openai">OpenAI</option>
+                    <option value="anthropic">Anthropic (Claude)</option>
+                    <option value="gemini">Google Gemini</option>
+                </select>
+            </div>
+            <div class="form-group"><label>API Key</label><input type="password" id="c_aiKey" class="field"></div>
             <button onclick="saveConfig()" style="margin-top: 1rem;">Save & Reboot</button>
         </div>
     </div>
@@ -217,6 +225,7 @@ const char index_html[] PROGMEM = R"rawliteral(
             document.getElementById('c_pass').value = cfg.pass || '';
             document.getElementById('c_tgToken').value = cfg.tgToken || '';
             document.getElementById('c_tgChat').value = cfg.tgChat || '';
+            document.getElementById('c_provider').value = cfg.provider || 'openai';
             document.getElementById('c_aiKey').value = cfg.aiKey || '';
         }
 
@@ -226,6 +235,7 @@ const char index_html[] PROGMEM = R"rawliteral(
                 pass: document.getElementById('c_pass').value,
                 tgToken: document.getElementById('c_tgToken').value,
                 tgChat: document.getElementById('c_tgChat').value,
+                provider: document.getElementById('c_provider').value,
                 aiKey: document.getElementById('c_aiKey').value
             };
             await fetch('/api/config', {
@@ -253,6 +263,7 @@ void initWebUI(WebChatCallback chatCallback) {
     doc["pass"] = configManager.getWifiPassword();
     doc["tgToken"] = configManager.getTelegramBotToken();
     doc["tgChat"] = configManager.getTelegramChatId();
+    doc["provider"] = configManager.getLlmProvider();
     doc["aiKey"] = configManager.getOpenAiApiKey();
     String out;
     serializeJson(doc, out);
@@ -274,10 +285,10 @@ void initWebUI(WebChatCallback chatCallback) {
           configManager.saveTelegramConfig(doc["tgToken"] | "",
                                            doc["tgChat"] | "");
 
-          // Keep existing prompt and model, just update API key
-          configManager.saveLlmConfig(doc["aiKey"] | "",
-                                      configManager.getLlmModel(),
-                                      configManager.getSystemPrompt());
+          // Keep existing prompt and model, just update API key and provider
+          configManager.saveLlmConfig(
+              doc["aiKey"] | "", doc["provider"] | "openai",
+              configManager.getLlmModel(), configManager.getSystemPrompt());
 
           request->send(200, "application/json", "{\"status\":\"ok\"}");
           delay(500);

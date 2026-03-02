@@ -17,6 +17,7 @@ void ConfigManager::loadAll() {
       preferences.getString("tgToken", "YOUR_TELEGRAM_BOT_TOKEN");
   telegramChatId = preferences.getString("tgChat", "YOUR_CHAT_ID");
   openAiApiKey = preferences.getString("aiKey", "YOUR_OPENAI_API_KEY");
+  llmProvider = preferences.getString("llmProv", "openai");
   llmModel = preferences.getString("llmMode", "gpt-3.5-turbo");
   systemPrompt = preferences.getString(
       "sysPrompt",
@@ -33,6 +34,7 @@ String ConfigManager::getWifiPassword() { return wifiPassword; }
 String ConfigManager::getTelegramBotToken() { return telegramBotToken; }
 String ConfigManager::getTelegramChatId() { return telegramChatId; }
 String ConfigManager::getOpenAiApiKey() { return openAiApiKey; }
+String ConfigManager::getLlmProvider() { return llmProvider; }
 String ConfigManager::getLlmModel() { return llmModel; }
 String ConfigManager::getSystemPrompt() { return systemPrompt; }
 
@@ -51,12 +53,14 @@ void ConfigManager::saveTelegramConfig(const String &botToken,
   preferences.putString("tgChat", telegramChatId);
 }
 
-void ConfigManager::saveLlmConfig(const String &apiKey, const String &model,
-                                  const String &prompt) {
+void ConfigManager::saveLlmConfig(const String &apiKey, const String &provider,
+                                  const String &model, const String &prompt) {
   openAiApiKey = apiKey;
+  llmProvider = provider;
   llmModel = model;
   systemPrompt = prompt;
   preferences.putString("aiKey", openAiApiKey);
+  preferences.putString("llmProv", llmProvider);
   preferences.putString("llmMode", llmModel);
   preferences.putString("sysPrompt", systemPrompt);
 }

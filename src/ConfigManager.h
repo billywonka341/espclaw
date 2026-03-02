@@ -15,14 +15,15 @@ public:
   String getTelegramBotToken();
   String getTelegramChatId();
   String getOpenAiApiKey();
+  String getLlmProvider();
   String getLlmModel();
   String getSystemPrompt();
 
   // Setters
   void saveWifiConfig(const String &ssid, const String &password);
   void saveTelegramConfig(const String &botToken, const String &chatId);
-  void saveLlmConfig(const String &apiKey, const String &model,
-                     const String &prompt);
+  void saveLlmConfig(const String &apiKey, const String &provider,
+                     const String &model, const String &prompt);
 
 private:
   Preferences preferences;
@@ -32,6 +33,7 @@ private:
   String telegramBotToken;
   String telegramChatId;
   String openAiApiKey;
+  String llmProvider;
   String llmModel;
   String systemPrompt;
 

@@ -13,10 +13,14 @@ At its core, `espclaw` listens for triggers (like a Telegram message or Local We
 ### The ESP8266 Memory Challenge
 ESP8266 only has ~80KB of RAM.
 - **TLS Challenge**: TLS usually requires establishing a secure connection and verifying the server's certificate chain. A typical CA bundle takes massive amounts of RAM (and SPIFFS storage). `espclaw` uses `client.setInsecure()` to skip the CA verification. Furthermore, standard ESP32 TLS buffers are 16KB. `espclaw` overrides these to 2KB RX and 512B-1KB TX.
-- **JSON Challenge**: LLM responses contain massive JSON objects. If `espclaw` tried to parse an OpenAI response using standard deserialization, it would OOM instantly. Instead, ArduinoJson 7 is configured with a `<Filter>` document:
+- **JSON Challenge**: LLM responses contain massive JSON objects. If `espclaw` tried to parse an API response using standard deserialization, it would OOM instantly. Instead, ArduinoJson 7 is configured with a `<Filter>` document depending on the provider:
   ```cpp
-  JsonDocument filter;
+  // OpenAI Filter
   filter["choices"][0]["message"]["content"] = true;
+  // Anthropic Filter
+  filter["content"][0]["text"] = true;
+  // Gemini Filter
+  filter["candidates"][0]["content"]["parts"][0]["text"] = true;
   ```
   This is run *directly on the WiFiClientSecure TCP stream*, discarding everything except the actual message bytes.
 
@@ -34,7 +38,7 @@ When the LLM replies to the user, for example: `I have turned on the kitchen lig
 ### Advanced ESP32 Features
 
 The ESP32 has plenty of horsepower (~320KB RAM in FreeRTOS). When `espclaw` detects an ESP32 build target during PlatformIO compilation (`#ifdef ESP32`), it unlocks the full feature set.
-1. **ConfigManager**: The ESP32 ships with an NVS (Non-Volatile Storage) library (`Preferences.h`). Instead of relying on hardcoded C++ macros (like the ESP8266), the ESP32 dynamically reads `WIFI_SSID` and `OPENAI_API_KEY` from flash memory.
+1. **ConfigManager**: The ESP32 ships with an NVS (Non-Volatile Storage) library (`Preferences.h`). Instead of relying on hardcoded C++ macros (like the ESP8266), the ESP32 dynamically reads `WIFI_SSID`, `OPENAI_API_KEY`, and `LLM_PROVIDER` from flash memory.
 2. **ESPAsyncWebServer**: The ESP32 spins up a secondary asynchronous webserver on port 80.
 3. **Captive Portal / AP Setup**: If the WiFi credentials in NVS are wrong or empty, the ESP32 acts as an Access Point (`ESPClaw-Config`).
 4. **Local Web UI**: A beautifully styled, glass-morphism web app is served by the ESP32 asynchronously. It communicates with the controller using JSON `fetch()` calls.

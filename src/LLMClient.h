@@ -3,6 +3,12 @@
 
 class LLMClient {
 public:
-  // Sends a message to the LLM and returns the text response
+  // Main routing function
   static String ask(const String &userMessage);
+
+private:
+  // Provider-specific callers
+  static String askOpenAI(const String &userMessage);
+  static String askAnthropic(const String &userMessage);
+  static String askGemini(const String &userMessage);
 };

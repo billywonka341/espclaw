@@ -79,7 +79,7 @@ jobs:
         with:
           name: espclaw ${{ github.ref_name }}
           body: |
-            ## 🚀 espclaw v1.0.0 is here!
+            ## 🚀 espclaw v1.5 is here!
             
             The smartest, smallest AI personal assistant designed to run on incredibly constrained hardware (ESP8266) while seamlessly scaling up to powerful capabilities on the ESP32.
             
@@ -87,7 +87,7 @@ jobs:
             - **ESP8266 Port**: Fully optimized streaming ArduinoJson parsers and BearSSL integration to run within ~80KB RAM!
             - **ESP32 Web UI**: Asynchronous local network Chat UI and Configuration portal.
             - **Dynamic Config**: Over-The-Air setup via Access Point Mode (`ESPClaw-Config`).
-            - Support for OpenAI, Anthropic, and OpenRouter API backends.
+            - Support for OpenAI, Anthropic, Gemini, and OpenRouter API backends.
             
             ### 📥 Installation
             Download the `espclaw-release-binaries.zip` below or the individual firmwares for your board.

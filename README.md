@@ -1,4 +1,4 @@
-# espclaw v1.0.0
+# espclaw v1.5
 
 The smartest, smallest AI personal assistant designed to run on incredibly constrained hardware (ESP8266) while seamlessly scaling up to powerful capabilities on the ESP32.
 
@@ -51,7 +51,9 @@ The ESP8266 only has ~80KB of data RAM (with roughly ~40KB free after Wi-Fi and 
 #### For ESP8266 (d1_mini, NodeMCU)
 Because the ESP8266 lacks the RAM for a full web server alongside TLS, configuration is handled at compile time.
 1. Open `src/config.h` in VS Code.
-2. Enter your credentials (`WIFI_SSID`, `WIFI_PASSWORD`, `TELEGRAM_BOT_TOKEN`, `OPENAI_API_KEY`).
+2. Enter your credentials (`WIFI_SSID`, `WIFI_PASSWORD`, `TELEGRAM_BOT_TOKEN`, `OPENAI_API_KEY`, `LLM_PROVIDER`).
+   - `OPENAI_API_KEY` is completely generic and is used for Anthropic or Gemini too.
+   - `LLM_PROVIDER` can be set to `"openai"`, `"anthropic"`, or `"gemini"`.
 3. Connect your ESP8266 via USB.
 4. Open the PlatformIO Core CLI (the little terminal icon on the bottom blue status bar of VS Code) and run:
    ```bash
