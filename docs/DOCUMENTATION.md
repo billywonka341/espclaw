@@ -35,6 +35,14 @@ You can control GPIO pins by outputting specific tool commands within your respo
 
 When the LLM replies to the user, for example: `I have turned on the kitchen light for you. [GPIO_ON: 4]`, `espclaw` uses a simple `indexOf('[')` loop to extract that internal command, flip the GPIO pin via `digitalWrite`, and the chat user only ever sees the friendly text message.
 
+### Dynamic Hardware Control & Context Injection
+In v2.2+, `espclaw` injects specific board intelligence *before* it talks to the LLM. During compilation, macros defining the physical board structure (e.g. `BOARD_INFO="NodeMCU v2. Pins: D1=5..."`) are baked into the firmware.
+Furthermore, users can configure **exactly what is connected** to the microcontroller pins so the AI knows how to interact with the real world.
+- **ESP32:** Users type plain-English descriptions (e.g., *"GPIO 4 is connected to the living room fan relay"*) into the Web UI's "Hardware Pins" configuration box. This is saved to NVS.
+- **ESP8266:** Users set the `#define USER_PINS` macro in `src/config.h`.
+
+When you message the bot from anywhere in the world via **Telegram** (or the local Web UI) asking to *"turn on the fan"*, `espclaw` dynamically pieces together the base `SYSTEM_PROMPT`, the physical `BOARD_INFO`, and your custom `USER_PINS` hardware profile. The LLM instantly figures out which GPIO controls the fan and autonomously replies with the exact `[GPIO_ON: 4]` command.
+
 ### Advanced ESP32 Features
 
 The ESP32 has plenty of horsepower (~320KB RAM in FreeRTOS). When `espclaw` detects an ESP32 build target during PlatformIO compilation (`#ifdef ESP32`), it unlocks the full feature set.
