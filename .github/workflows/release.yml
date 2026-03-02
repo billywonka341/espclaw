@@ -101,6 +101,8 @@ jobs:
             The smartest, smallest AI personal assistant designed to run on incredibly constrained hardware (ESP8266) while seamlessly scaling up to powerful capabilities on the ESP32.
             
             ### ✨ Features in this release
+            - **🔌 Dynamic Hardware Control**: The AI now natively understands the physical pins of your specific board (e.g. D4 vs GPIO 2).
+            - **🎛️ Web UI Configurable Pins**: You can now define exactly what hardware is connected to what pin (like fans or relays) directly in the WebUI so the Telegram AI knows exactly what to control!
             - **ESP32 Web UI Overhaul**: New built-in "Logs" interface that captures API traces in real-time.
             - **2026 Enterprise Models**: Explicit support added for the latest 2026 models like `gpt-5.2`, `claude-opus-4-6`, and `gemini-3-flash-preview` straight from the UI.
             - **cURL API Tracing**: The device now automatically synthesizes and logs the formatted `curl` command it sends for your debugging convenience.

@@ -1,6 +1,8 @@
-# espclaw v2.0
+# espclaw v2.2
 
-> **v2.0 Release Update (March 3, 2026)**
+> **v2.2 Release Update (March 3, 2026)**
+> - 🔌 **Dynamic Hardware Control**: The AI now natively understands the physical pins of your specific board (e.g. D4 vs GPIO 2).
+> - 🎛️ **Web UI Configurable Pins**: You can now define exactly what hardware is connected to what pin (like fans or relays) directly in the WebUI so the AI knows exactly what to control!
 > - ✨ **ESP32 Web UI Overhaul**: New built-in "Logs" interface that captures API traces in real-time.
 > - 🤖 **2026 Enterprise Models**: Explicit support added for the latest 2026 models like `gpt-5.2`, `claude-opus-4-6`, and `gemini-3-flash-preview` straight from the UI.
 > - 📡 **cURL API Tracing**: The device now automatically synthesizes and logs the formatted `curl` command it sends to OpenAI, Anthropic, or Gemini for your debugging convenience.
@@ -23,6 +25,12 @@ With extensive optimizations, `espclaw` brings LLMs (OpenAI, Anthropic, OpenRout
 - **Telegram Integration**: Chat with your board from anywhere in the world.
 - **Local Web UI (ESP32)**: Beautiful asynchronous local network chat interface with an onboard real-time Logs dashboard.
 - **Over-The-Air Setup (ESP32)**: No need to hardcode WiFi! The ESP32 boots into Access Point mode if it can't connect, allowing you to configure everything from a browser.
+
+### 🔌 Dynamic Hardware Control (Relays, Fans, LEDs)
+`espclaw` isn't just a chatbot; it physically interacts with the real world! You can control hardware from anywhere on the planet simply by messaging your bot on **Telegram** (or using the local Web UI).
+1. **ESP32**: Open the *Config* tab in the Web UI. Under the **Hardware Pins & Components** box, simply tell the AI what you plugged in in plain English! (e.g., *"GPIO 4 is connected to the living room fan relay. GPIO 13 is the red LED."*)
+2. **ESP8266**: Open `src/config.h` and edit the `#define USER_PINS` string with the same English description.
+3. Open Telegram and message your bot: *"Can you turn on the living room fan?"* The AI will automatically read your hardware definitions, figure out that the fan is on pin 4, and silently toggle the GPIO high!
 
 ---
 
