@@ -1,4 +1,10 @@
-# espclaw v1.7
+# espclaw v2.0
+
+> **v2.0 Release Update (March 3, 2026)**
+> - ✨ **ESP32 Web UI Overhaul**: New built-in "Logs" interface that captures API traces in real-time.
+> - 🤖 **2026 Enterprise Models**: Explicit support added for the latest 2026 models like `gpt-5.2`, `claude-opus-4-6`, and `gemini-3-flash-preview` straight from the UI.
+> - 📡 **cURL API Tracing**: The device now automatically synthesizes and logs the formatted `curl` command it sends to OpenAI, Anthropic, or Gemini for your debugging convenience.
+> - 🧠 **Broader AI Personas**: The system prompts have been expanded so the AI will not only control hardware but gracefully answer general knowledge questions.
 
 The smartest, smallest AI personal assistant designed to run on incredibly constrained hardware (ESP8266) while seamlessly scaling up to powerful capabilities on the ESP32.
 
@@ -15,7 +21,7 @@ With extensive optimizations, `espclaw` brings LLMs (OpenAI, Anthropic, OpenRout
 ### Core Capabilities
 - **Natural Language Tooling**: Automatically toggle GPIO pins via natural language commands (e.g., `[GPIO_ON: 4]`).
 - **Telegram Integration**: Chat with your board from anywhere in the world.
-- **Local Web UI (ESP32)**: Beautiful asynchronous local network chat interface.
+- **Local Web UI (ESP32)**: Beautiful asynchronous local network chat interface with an onboard real-time Logs dashboard.
 - **Over-The-Air Setup (ESP32)**: No need to hardcode WiFi! The ESP32 boots into Access Point mode if it can't connect, allowing you to configure everything from a browser.
 
 ---

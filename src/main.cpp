@@ -12,6 +12,7 @@
 #include <WiFi.h>
 #endif
 
+#include "Logger.h"
 #include <time.h>
 
 TelegramBot bot;
@@ -32,12 +33,12 @@ void executeTools(const String &llmResponse) {
       int pin = command.substring(8).toInt();
       pinMode(pin, OUTPUT);
       digitalWrite(pin, HIGH);
-      Serial.printf("TOOL: Toggled GPIO %d ON\n", pin);
+      appLogger.logf("TOOL: Toggled GPIO %d ON\n", pin);
     } else if (command.startsWith("GPIO_OFF:")) {
       int pin = command.substring(9).toInt();
       pinMode(pin, OUTPUT);
       digitalWrite(pin, LOW);
-      Serial.printf("TOOL: Toggled GPIO %d OFF\n", pin);
+      appLogger.logf("TOOL: Toggled GPIO %d OFF\n", pin);
     }
 
     index = endIndex + 1;
@@ -45,12 +46,12 @@ void executeTools(const String &llmResponse) {
 }
 
 void onTelegramMessage(const String &chatId, const String &text) {
-  Serial.printf("Message from %s: %s\n", chatId.c_str(), text.c_str());
+  appLogger.logf("Message from %s: %s\n", chatId.c_str(), text.c_str());
 
   String allowed = String(TELEGRAM_ALLOWED_CHAT_ID);
   if (allowed != "YOUR_CHAT_ID" && allowed != "" && chatId != allowed) {
     bot.sendMessage(chatId, "Unauthorized user.");
-    Serial.println("Blocked unauthorized user.");
+    appLogger.log("Blocked unauthorized user.");
     return;
   }
 
@@ -62,7 +63,7 @@ void onTelegramMessage(const String &chatId, const String &text) {
 
 #if defined(ESP32)
 void onWebChatMessage(const String &message, String &response) {
-  Serial.printf("Web Chat Message: %s\n", message.c_str());
+  appLogger.logf("Web Chat Message: %s\n", message.c_str());
   response = LLMClient::ask(message);
   executeTools(response);
 }
@@ -70,7 +71,7 @@ void onWebChatMessage(const String &message, String &response) {
 
 void setup() {
   Serial.begin(115200);
-  Serial.printf("\n\n--- espclaw v%s ---\n", VERSION);
+  appLogger.logf("\n\n--- espclaw v%s ---\n", VERSION);
 
 #if defined(ESP32)
   configManager.begin();
@@ -89,20 +90,19 @@ void setup() {
 
 #if defined(ESP32)
   if (WiFi.status() != WL_CONNECTED) {
-    Serial.println("\nFailed to connect. Starting AP mode for configuration.");
+    appLogger.log("\nFailed to connect. Starting AP mode for configuration.");
     WiFi.mode(WIFI_AP);
     WiFi.softAP("ESPClaw-Config", "12345678");
-    Serial.print("AP IP: ");
-    Serial.println(WiFi.softAPIP());
+    appLogger.log("AP IP: " + WiFi.softAPIP().toString());
   } else {
-    Serial.println("\nConnected! IP: " + WiFi.localIP().toString());
+    appLogger.log("\nConnected! IP: " + WiFi.localIP().toString());
   }
 
   // Initialize Web UI
   initWebUI(onWebChatMessage);
 #else
   if (WiFi.status() == WL_CONNECTED) {
-    Serial.println("\nConnected! IP: " + WiFi.localIP().toString());
+    appLogger.log("\nConnected! IP: " + WiFi.localIP().toString());
   }
 #endif
 
@@ -115,13 +115,13 @@ void setup() {
       Serial.print(".");
       now = time(nullptr);
     }
-    Serial.println("\nTime synced.");
+    appLogger.log("\nTime synced.");
 
     bot.begin(TELEGRAM_BOT_TOKEN);
     bot.onMessage(onTelegramMessage);
   }
 
-  Serial.println("System initialized. Ready to chat!");
+  appLogger.log("System initialized. Ready to chat!");
 }
 
 void loop() {

@@ -25,8 +25,10 @@ void ConfigManager::loadAll() {
       "limited memory but can control hardware devices.\n\nYou can control "
       "GPIO pins by outputting specific tool commands within your response in "
       "square brackets. For example:\n- To turn ON GPIO 4: [GPIO_ON: 4]\n- To "
-      "turn OFF GPIO 4: [GPIO_OFF: 4]\n\nKeep your responses very brief and "
-      "helpful.");
+      "turn OFF GPIO 4: [GPIO_OFF: 4]\n\nYou can explicitly chat with the user "
+      "and answer general questions about any topic. Keep your responses "
+      "concise "
+      "and helpful.");
 }
 
 String ConfigManager::getWifiSsid() { return wifiSsid; }

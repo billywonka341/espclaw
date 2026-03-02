@@ -1,6 +1,7 @@
 #if defined(ESP32)
 #include "WebUI.h"
 #include "ConfigManager.h"
+#include "Logger.h"
 #include <ArduinoJson.h>
 
 AsyncWebServer server(80);
@@ -138,6 +139,7 @@ const char index_html[] PROGMEM = R"rawliteral(
         <div class="nav-links">
             <a href="#" class="active" onclick="switchTab('chat')">Chat</a>
             <a href="#" onclick="switchTab('config')">Config</a>
+            <a href="#" onclick="switchTab('logs')">Logs</a>
         </div>
     </nav>
     <div class="container">
@@ -162,24 +164,89 @@ const char index_html[] PROGMEM = R"rawliteral(
             <div class="form-group"><label>Telegram Chat ID</label><input type="text" id="c_tgChat" class="field"></div>
             <div class="form-group">
                 <label>LLM Provider</label>
-                <select id="c_provider" class="field">
+                <select id="c_provider" class="field" onchange="updateModels()">
                     <option value="openai">OpenAI</option>
                     <option value="anthropic">Anthropic (Claude)</option>
                     <option value="gemini">Google Gemini</option>
                 </select>
             </div>
+            <div class="form-group">
+                <label>LLM Model</label>
+                <select id="c_model" class="field"></select>
+            </div>
             <div class="form-group"><label>API Key</label><input type="password" id="c_aiKey" class="field"></div>
             <button onclick="saveConfig()" style="margin-top: 1rem;">Save & Reboot</button>
+        </div>
+
+        <!-- Logs Interface -->
+        <div id="logs-view" style="display: none; flex-direction: column; height: 100%;">
+            <div class="chat-box" style="font-family: monospace; white-space: pre-wrap; word-wrap: break-word; font-size: 0.9rem;" id="logBox">
+                Loading logs...
+            </div>
+            <button onclick="clearLogs()" style="align-self: flex-end;">Clear Logs</button>
         </div>
     </div>
 
     <script>
+        const models = {
+            openai: ["gpt-5.2", "gpt-5-pro", "gpt-5.1", "gpt-5.1-chat-latest"],
+            anthropic: ["claude-opus-4-6", "claude-sonnet-4-6", "claude-haiku-4-5-20251001", "claude-opus-4-5-20251101", "claude-sonnet-4-5-20250929"],
+            gemini: ["gemini-3.1-pro-preview", "gemini-3-flash-preview"]
+        };
+
+        function updateModels(selectedModel = null) {
+            const provider = document.getElementById('c_provider').value;
+            const modelSelect = document.getElementById('c_model');
+            modelSelect.innerHTML = '';
+            
+            const providerModels = models[provider] || models['openai'];
+            providerModels.forEach(model => {
+                const option = document.createElement('option');
+                option.value = model;
+                option.textContent = model;
+                modelSelect.appendChild(option);
+            });
+            
+            if (selectedModel && providerModels.includes(selectedModel)) {
+                modelSelect.value = selectedModel;
+            } else if (providerModels.length > 0) {
+                modelSelect.value = providerModels[0];
+            }
+        }
+
+        let logInterval = null;
+
         function switchTab(tab) {
             document.querySelectorAll('.nav-links a').forEach(a => a.classList.remove('active'));
             document.querySelector(`.nav-links a[onclick="switchTab('${tab}')"]`).classList.add('active');
             document.getElementById('chat-view').style.display = tab === 'chat' ? 'flex' : 'none';
             document.getElementById('config-view').style.display = tab === 'config' ? 'flex' : 'none';
+            document.getElementById('logs-view').style.display = tab === 'logs' ? 'flex' : 'none';
+            
             if (tab === 'config') loadConfig();
+            
+            if (tab === 'logs') {
+                loadLogs();
+                logInterval = setInterval(loadLogs, 2500);
+            } else if (logInterval) {
+                clearInterval(logInterval);
+                logInterval = null;
+            }
+        }
+
+        async function loadLogs() {
+            try {
+                const res = await fetch('/api/logs');
+                const text = await res.text();
+                const lb = document.getElementById('logBox');
+                lb.innerText = text || 'No logs available.';
+                lb.scrollTop = lb.scrollHeight;
+            } catch (err) {}
+        }
+
+        async function clearLogs() {
+            await fetch('/api/logs', { method: 'DELETE' });
+            document.getElementById('logBox').innerText = '';
         }
 
         async function sendMsg() {
@@ -226,6 +293,7 @@ const char index_html[] PROGMEM = R"rawliteral(
             document.getElementById('c_tgToken').value = cfg.tgToken || '';
             document.getElementById('c_tgChat').value = cfg.tgChat || '';
             document.getElementById('c_provider').value = cfg.provider || 'openai';
+            updateModels(cfg.model);
             document.getElementById('c_aiKey').value = cfg.aiKey || '';
         }
 
@@ -236,6 +304,7 @@ const char index_html[] PROGMEM = R"rawliteral(
                 tgToken: document.getElementById('c_tgToken').value,
                 tgChat: document.getElementById('c_tgChat').value,
                 provider: document.getElementById('c_provider').value,
+                model: document.getElementById('c_model').value,
                 aiKey: document.getElementById('c_aiKey').value
             };
             await fetch('/api/config', {
@@ -264,6 +333,7 @@ void initWebUI(WebChatCallback chatCallback) {
     doc["tgToken"] = configManager.getTelegramBotToken();
     doc["tgChat"] = configManager.getTelegramChatId();
     doc["provider"] = configManager.getLlmProvider();
+    doc["model"] = configManager.getLlmModel();
     doc["aiKey"] = configManager.getOpenAiApiKey();
     String out;
     serializeJson(doc, out);
@@ -285,10 +355,10 @@ void initWebUI(WebChatCallback chatCallback) {
           configManager.saveTelegramConfig(doc["tgToken"] | "",
                                            doc["tgChat"] | "");
 
-          // Keep existing prompt and model, just update API key and provider
+          // Update API key, provider, and model, keeping existing prompt
           configManager.saveLlmConfig(
               doc["aiKey"] | "", doc["provider"] | "openai",
-              configManager.getLlmModel(), configManager.getSystemPrompt());
+              doc["model"] | "gpt-3.5-turbo", configManager.getSystemPrompt());
 
           request->send(200, "application/json", "{\"status\":\"ok\"}");
           delay(500);
@@ -297,6 +367,15 @@ void initWebUI(WebChatCallback chatCallback) {
           request->send(400, "application/json", "{\"status\":\"error\"}");
         }
       });
+
+  server.on("/api/logs", HTTP_GET, [](AsyncWebServerRequest *request) {
+    request->send(200, "text/plain", appLogger.getLogs());
+  });
+
+  server.on("/api/logs", HTTP_DELETE, [](AsyncWebServerRequest *request) {
+    appLogger.clear();
+    request->send(200, "text/plain", "Cleared");
+  });
 
   server.on(
       "/api/chat", HTTP_POST, [](AsyncWebServerRequest *request) {}, NULL,
@@ -317,6 +396,6 @@ void initWebUI(WebChatCallback chatCallback) {
       });
 
   server.begin();
-  Serial.println("WebUI started on HTTP port 80");
+  appLogger.log("WebUI started on HTTP port 80");
 }
 #endif

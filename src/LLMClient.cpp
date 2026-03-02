@@ -1,4 +1,5 @@
 #include "LLMClient.h"
+#include "Logger.h"
 #include "config.h"
 #include <ArduinoJson.h>
 
@@ -34,9 +35,9 @@ String LLMClient::askOpenAI(const String &userMessage) {
   client.setBufferSizes(2048, 1024);
 #endif
 
-  Serial.println("LLM: Connecting to api.openai.com...");
+  appLogger.log("LLM: Connecting to api.openai.com...");
   if (!client.connect("api.openai.com", 443)) {
-    Serial.println("LLM: Connection failed!");
+    appLogger.log("LLM: Connection failed!");
     return "Error: Could not connect to OpenAI API.";
   }
 
@@ -56,6 +57,15 @@ String LLMClient::askOpenAI(const String &userMessage) {
 
   String requestBody;
   serializeJson(requestDoc, requestBody);
+
+  // Build and log the curl command equivalent
+  String curlCmd = "curl https://api.openai.com/v1/chat/completions \\\n";
+  curlCmd += "  -H \"Content-Type: application/json\" \\\n";
+  curlCmd +=
+      "  -H \"Authorization: Bearer " + String(OPENAI_API_KEY) + "\" \\\n";
+  curlCmd += "  -d '" + requestBody + "'";
+  appLogger.log("\n--- Executing LLM Request ---");
+  appLogger.log(curlCmd);
 
   // Send HTTP POST Request Manually
   client.println("POST /v1/chat/completions HTTP/1.1");
@@ -89,9 +99,14 @@ String LLMClient::askOpenAI(const String &userMessage) {
   DeserializationError error = deserializeJson(
       responseDoc, client, DeserializationOption::Filter(filter));
 
+  // Log response payload representation
+  String responseDebug;
+  serializeJson(responseDoc, responseDebug);
+  appLogger.log("--- Raw API Response ---");
+  appLogger.log(responseDebug);
+
   if (error) {
-    Serial.print("LLM: JSON Parse Error: ");
-    Serial.println(error.c_str());
+    appLogger.logf("LLM: JSON Parse Error: %s\n", error.c_str());
     return String("Error parsing LLM response: ") + error.c_str();
   }
 
@@ -127,7 +142,7 @@ String LLMClient::askAnthropic(const String &userMessage) {
   JsonDocument requestDoc;
   String modelToUse = String(LLM_MODEL);
   if (modelToUse == "gpt-3.5-turbo") {
-    modelToUse = "claude-3-haiku-20240307"; // Auto-correct default
+    modelToUse = "claude-sonnet-4-6"; // Auto-correct default
   }
   requestDoc["model"] = modelToUse;
   requestDoc["max_tokens"] = 1024;
@@ -223,7 +238,7 @@ String LLMClient::askGemini(const String &userMessage) {
 
   String modelToUse = String(LLM_MODEL);
   if (modelToUse == "gpt-3.5-turbo") {
-    modelToUse = "gemini-1.5-flash"; // Auto-correct default
+    modelToUse = "gemini-3-flash-preview"; // Auto-correct default
   }
 
   String url = String("/v1beta/models/") + modelToUse +
