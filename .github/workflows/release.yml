@@ -96,16 +96,16 @@ jobs:
         with:
           name: espclaw ${{ github.ref_name }}
           body: |
-            ## 🚀 espclaw v1.7 is here!
+            ## 🚀 espclaw ${{ github.ref_name }} is here!
             
             The smartest, smallest AI personal assistant designed to run on incredibly constrained hardware (ESP8266) while seamlessly scaling up to powerful capabilities on the ESP32.
             
             ### ✨ Features in this release
+            - **ESP32 Web UI Overhaul**: New built-in "Logs" interface that captures API traces in real-time.
+            - **2026 Enterprise Models**: Explicit support added for the latest 2026 models like `gpt-5.2`, `claude-opus-4-6`, and `gemini-3-flash-preview` straight from the UI.
+            - **cURL API Tracing**: The device now automatically synthesizes and logs the formatted `curl` command it sends for your debugging convenience.
+            - **Broader AI Personas**: The system prompts have been expanded so the AI will not only control hardware but gracefully answer general knowledge questions.
             - **ESP8266 Port**: Fully optimized streaming ArduinoJson parsers and BearSSL integration to run within ~80KB RAM!
-            - **ESP32 Web UI**: Asynchronous local network Chat UI and Configuration portal.
-            - **Dynamic Config**: Over-The-Air setup via Access Point Mode (`ESPClaw-Config`).
-            - Support for OpenAI, Anthropic, Gemini, and OpenRouter API backends.
-            - **New Dedicated Board Targets**: Out-of-the-box support for `esp32-c3`, `esp32-s2`, `esp32-s3`, and `nodemcuv2`.
             
             ### 📥 Installation
             Download the `espclaw-release-binaries.zip` below or the individual firmwares for your board.
