@@ -1,4 +1,4 @@
-# espclaw v1.5
+# espclaw v1.7
 
 The smartest, smallest AI personal assistant designed to run on incredibly constrained hardware (ESP8266) while seamlessly scaling up to powerful capabilities on the ESP32.
 

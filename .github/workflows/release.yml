@@ -54,22 +54,38 @@ jobs:
           #endif
           EOF
 
-      - name: Build ESP8266 d1_mini Firmware
-        run: pio run -e d1_mini
-
-      - name: Build ESP32 esp32dev Firmware
-        run: pio run -e esp32dev
+      - name: Build Firmwares
+        run: |
+          pio run -e d1_mini
+          pio run -e nodemcuv2
+          pio run -e esp32dev
+          pio run -e esp32-c3
+          pio run -e esp32-s3
+          pio run -e esp32-s2
 
       - name: Package Release Files
         run: |
           mkdir -p release_assets
           # ESP8266 Assets
           cp .pio/build/d1_mini/firmware.bin release_assets/espclaw-esp8266-d1_mini.bin
+          cp .pio/build/nodemcuv2/firmware.bin release_assets/espclaw-esp8266-nodemcuv2.bin
           
           # ESP32 Assets (Requires bootloader, partitions, and firmware)
           cp .pio/build/esp32dev/firmware.bin release_assets/espclaw-esp32dev-firmware.bin
           cp .pio/build/esp32dev/partitions.bin release_assets/espclaw-esp32dev-partitions.bin
           cp .pio/build/esp32dev/bootloader.bin release_assets/espclaw-esp32dev-bootloader.bin
+          
+          cp .pio/build/esp32-c3/firmware.bin release_assets/espclaw-esp32-c3-firmware.bin
+          cp .pio/build/esp32-c3/partitions.bin release_assets/espclaw-esp32-c3-partitions.bin
+          cp .pio/build/esp32-c3/bootloader.bin release_assets/espclaw-esp32-c3-bootloader.bin
+          
+          cp .pio/build/esp32-s3/firmware.bin release_assets/espclaw-esp32-s3-firmware.bin
+          cp .pio/build/esp32-s3/partitions.bin release_assets/espclaw-esp32-s3-partitions.bin
+          cp .pio/build/esp32-s3/bootloader.bin release_assets/espclaw-esp32-s3-bootloader.bin
+          
+          cp .pio/build/esp32-s2/firmware.bin release_assets/espclaw-esp32-s2-firmware.bin
+          cp .pio/build/esp32-s2/partitions.bin release_assets/espclaw-esp32-s2-partitions.bin
+          cp .pio/build/esp32-s2/bootloader.bin release_assets/espclaw-esp32-s2-bootloader.bin
           
           cd release_assets
           # Create a zip containing all binaries for easy downloading
@@ -80,7 +96,7 @@ jobs:
         with:
           name: espclaw ${{ github.ref_name }}
           body: |
-            ## 🚀 espclaw v1.5 is here!
+            ## 🚀 espclaw v1.7 is here!
             
             The smartest, smallest AI personal assistant designed to run on incredibly constrained hardware (ESP8266) while seamlessly scaling up to powerful capabilities on the ESP32.
             
@@ -89,15 +105,12 @@ jobs:
             - **ESP32 Web UI**: Asynchronous local network Chat UI and Configuration portal.
             - **Dynamic Config**: Over-The-Air setup via Access Point Mode (`ESPClaw-Config`).
             - Support for OpenAI, Anthropic, Gemini, and OpenRouter API backends.
+            - **New Dedicated Board Targets**: Out-of-the-box support for `esp32-c3`, `esp32-s2`, `esp32-s3`, and `nodemcuv2`.
             
             ### 📥 Installation
             Download the `espclaw-release-binaries.zip` below or the individual firmwares for your board.
             Check the [README.md](https://github.com/billywonka341/espclaw/blob/main/README.md) for full flashing and setup instructions!
           files: |
-            release_assets/espclaw-esp8266-d1_mini.bin
-            release_assets/espclaw-esp32dev-firmware.bin
-            release_assets/espclaw-esp32dev-partitions.bin
-            release_assets/espclaw-esp32dev-bootloader.bin
-            release_assets/espclaw-release-binaries.zip
+            release_assets/*
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
