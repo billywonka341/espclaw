@@ -1,0 +1,64 @@
+#if defined(ESP32)
+#include "ConfigManager.h"
+
+ConfigManager configManager;
+
+ConfigManager::ConfigManager() {}
+
+void ConfigManager::begin() {
+  preferences.begin("espclaw", false);
+  loadAll();
+}
+
+void ConfigManager::loadAll() {
+  wifiSsid = preferences.getString("wifiSsid", "YOUR_WIFI_SSID");
+  wifiPassword = preferences.getString("wifiPass", "YOUR_WIFI_PASSWORD");
+  telegramBotToken =
+      preferences.getString("tgToken", "YOUR_TELEGRAM_BOT_TOKEN");
+  telegramChatId = preferences.getString("tgChat", "YOUR_CHAT_ID");
+  openAiApiKey = preferences.getString("aiKey", "YOUR_OPENAI_API_KEY");
+  llmModel = preferences.getString("llmMode", "gpt-3.5-turbo");
+  systemPrompt = preferences.getString(
+      "sysPrompt",
+      "You are an AI assistant running on an ESP32 microcontroller. You have "
+      "limited memory but can control hardware devices.\n\nYou can control "
+      "GPIO pins by outputting specific tool commands within your response in "
+      "square brackets. For example:\n- To turn ON GPIO 4: [GPIO_ON: 4]\n- To "
+      "turn OFF GPIO 4: [GPIO_OFF: 4]\n\nKeep your responses very brief and "
+      "helpful.");
+}
+
+String ConfigManager::getWifiSsid() { return wifiSsid; }
+String ConfigManager::getWifiPassword() { return wifiPassword; }
+String ConfigManager::getTelegramBotToken() { return telegramBotToken; }
+String ConfigManager::getTelegramChatId() { return telegramChatId; }
+String ConfigManager::getOpenAiApiKey() { return openAiApiKey; }
+String ConfigManager::getLlmModel() { return llmModel; }
+String ConfigManager::getSystemPrompt() { return systemPrompt; }
+
+void ConfigManager::saveWifiConfig(const String &ssid, const String &password) {
+  wifiSsid = ssid;
+  wifiPassword = password;
+  preferences.putString("wifiSsid", wifiSsid);
+  preferences.putString("wifiPass", wifiPassword);
+}
+
+void ConfigManager::saveTelegramConfig(const String &botToken,
+                                       const String &chatId) {
+  telegramBotToken = botToken;
+  telegramChatId = chatId;
+  preferences.putString("tgToken", telegramBotToken);
+  preferences.putString("tgChat", telegramChatId);
+}
+
+void ConfigManager::saveLlmConfig(const String &apiKey, const String &model,
+                                  const String &prompt) {
+  openAiApiKey = apiKey;
+  llmModel = model;
+  systemPrompt = prompt;
+  preferences.putString("aiKey", openAiApiKey);
+  preferences.putString("llmMode", llmModel);
+  preferences.putString("sysPrompt", systemPrompt);
+}
+
+#endif

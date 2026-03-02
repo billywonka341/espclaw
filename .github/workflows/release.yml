@@ -1,0 +1,71 @@
+name: Build and Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Cache pip
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
+
+      - name: Cache PlatformIO
+        uses: actions/cache@v4
+        with:
+          path: ~/.platformio
+          key: ${{ runner.os }}-${{ hashFiles('**/platformio.ini') }}
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install PlatformIO Core
+        run: pip install --upgrade platformio
+
+      - name: Build ESP8266 d1_mini Firmware
+        run: pio run -e d1_mini
+
+      - name: Build ESP32 esp32dev Firmware
+        run: pio run -e esp32dev
+
+      - name: Package Release Files
+        run: |
+          mkdir -p release_assets
+          # ESP8266 Assets
+          cp .pio/build/d1_mini/firmware.bin release_assets/espclaw-esp8266-d1_mini.bin
+          
+          # ESP32 Assets (Requires bootloader, partitions, and firmware)
+          cp .pio/build/esp32dev/firmware.bin release_assets/espclaw-esp32dev-firmware.bin
+          cp .pio/build/esp32dev/partitions.bin release_assets/espclaw-esp32dev-partitions.bin
+          cp .pio/build/esp32dev/bootloader.bin release_assets/espclaw-esp32dev-bootloader.bin
+          
+          cd release_assets
+          # Create a zip containing all binaries for easy downloading
+          zip -r espclaw-release-binaries.zip *
+
+      - name: Upload Release Assets
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            release_assets/espclaw-esp8266-d1_mini.bin
+            release_assets/espclaw-esp32dev-firmware.bin
+            release_assets/espclaw-esp32dev-partitions.bin
+            release_assets/espclaw-esp32dev-bootloader.bin
+            release_assets/espclaw-release-binaries.zip
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
