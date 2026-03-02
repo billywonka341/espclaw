@@ -61,6 +61,21 @@ jobs:
       - name: Upload Release Assets
         uses: softprops/action-gh-release@v2
         with:
+          name: espclaw ${{ github.ref_name }}
+          body: |
+            ## 🚀 espclaw v1.0.0 is here!
+            
+            The smartest, smallest AI personal assistant designed to run on incredibly constrained hardware (ESP8266) while seamlessly scaling up to powerful capabilities on the ESP32.
+            
+            ### ✨ Features in this release
+            - **ESP8266 Port**: Fully optimized streaming ArduinoJson parsers and BearSSL integration to run within ~80KB RAM!
+            - **ESP32 Web UI**: Asynchronous local network Chat UI and Configuration portal.
+            - **Dynamic Config**: Over-The-Air setup via Access Point Mode (`ESPClaw-Config`).
+            - Support for OpenAI, Anthropic, and OpenRouter API backends.
+            
+            ### 📥 Installation
+            Download the `espclaw-release-binaries.zip` below or the individual firmwares for your board.
+            Check the [README.md](https://github.com/billywonka341/espclaw/blob/main/README.md) for full flashing and setup instructions!
           files: |
             release_assets/espclaw-esp8266-d1_mini.bin
             release_assets/espclaw-esp32dev-firmware.bin
