@@ -34,8 +34,8 @@ jobs:
         with:
           python-version: '3.11'
 
-      - name: Install PlatformIO Core
-        run: pip install --upgrade platformio
+      - name: Install PlatformIO Core and Dependencies
+        run: pip install --upgrade platformio intelhex
 
       - name: Create dummy config.h for ESP8266
         run: |
