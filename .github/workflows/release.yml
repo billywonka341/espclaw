@@ -51,6 +51,9 @@ jobs:
           #define LLM_PROVIDER "openai"
           #define LLM_MODEL "gpt-3.5-turbo"
           #define SYSTEM_PROMPT "dummy prompt"
+          #define USER_PINS ""
+          #define MULTI_ESP_ENABLED false
+          #define DEVICE_ID ""
           #endif
           EOF
 

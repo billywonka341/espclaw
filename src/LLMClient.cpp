@@ -131,7 +131,7 @@ String LLMClient::askOpenAI(const String &userMessage) {
   }
 
   // Check if the API returned an explicit error
-  if (responseDoc.containsKey("error")) {
+  if (!responseDoc["error"].isNull()) {
     String errMsg = responseDoc["error"]["message"] | "Unknown API Error";
     return String("API Error: ") + errMsg;
   }
