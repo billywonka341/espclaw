@@ -3,7 +3,6 @@
 #include "config.h"
 #include "version.h"
 #include <Arduino.h>
-
 #if defined(ESP8266)
 #include <ESP8266WiFi.h>
 #elif defined(ESP32)
