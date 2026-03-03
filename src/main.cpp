@@ -55,8 +55,94 @@ void onTelegramMessage(const String &chatId, const String &text) {
     return;
   }
 
+  String cmdText = text;
+  cmdText.trim();
+
+#if defined(ESP32)
+  bool multiEsp = configManager.getMultiEspEnabled();
+  String devId = configManager.getDeviceId();
+
+  if (multiEsp) {
+    String prefix = "/" + devId;
+    if (cmdText.startsWith(prefix + " ")) {
+      cmdText = cmdText.substring(prefix.length() + 1);
+      cmdText.trim();
+    } else {
+      if (cmdText != "/multiespclaw") {
+        return; // Ignore if not addressed to this device
+      }
+    }
+  }
+#endif
+
+  if (cmdText == "/setup") {
+#if defined(ESP32)
+    String prov = configManager.getLlmProvider();
+    String mod = configManager.getLlmModel();
+#else
+    String prov = String(LLM_PROVIDER);
+    String mod = String(LLM_MODEL);
+#endif
+    String setupMsg = "Device Configuration:\n";
+    setupMsg += "- Provider: " + prov + "\n";
+    setupMsg += "- Model: " + mod + "\n";
+    setupMsg += "\nNote: When configuring via chat, text has to be exact.";
+    bot.sendMessage(chatId, setupMsg);
+    return;
+  }
+
+  if (cmdText == "/multiespclaw") {
+#if defined(ESP32)
+    int r = random(1000, 10000); // 1000 to 9999
+    String newId = "esp" + String(r);
+    configManager.setMultiEspConfig(true, newId);
+    bot.sendMessage(chatId,
+                    "Switched to Multi-ESP mode. New Device ID: " + newId);
+#else
+    bot.sendMessage(chatId, "Multi-ESP mode is only supported on ESP32.");
+#endif
+    return;
+  }
+
+  if (cmdText == "/gpiodescription") {
+#if defined(ESP32)
+    bot.sendMessage(chatId, "Current GPIO Description:\n" +
+                                configManager.getUserPins());
+#else
+    bot.sendMessage(chatId, "Current GPIO Description:\n" + String(USER_PINS) +
+                                "\n(Change via config.h on ESP8266)");
+#endif
+    return;
+  }
+
+  if (cmdText.startsWith("/changegpiodescription ")) {
+#if defined(ESP32)
+    String newPins =
+        cmdText.substring(23); // length of "/changegpiodescription "
+    newPins.trim();
+    configManager.setUserPins(newPins);
+    bot.sendMessage(
+        chatId,
+        "GPIO description updated successfully.\nNew Description:\n" + newPins);
+#else
+    bot.sendMessage(
+        chatId,
+        "Changing GPIO description dynamically is only supported on ESP32.");
+#endif
+    return;
+  }
+
+#if defined(ESP32)
+  if (cmdText.startsWith("/") && cmdText.indexOf(" ") == -1 && multiEsp) {
+    String newId = cmdText.substring(1);
+    configManager.setMultiEspConfig(true, newId);
+    bot.sendMessage(chatId, "Device ID successfully changed to: " + newId);
+    return;
+  }
+#endif
+
   bot.sendMessage(chatId, "Let me think...");
-  String llmReply = LLMClient::ask(text);
+  String llmReply = LLMClient::ask(cmdText);
   executeTools(llmReply);
   bot.sendMessage(chatId, llmReply);
 }

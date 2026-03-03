@@ -11,6 +11,18 @@
 
 #include <WiFiClientSecure.h>
 
+#ifndef BOARD_INFO
+#define BOARD_INFO "Generic ESP Board"
+#endif
+
+#ifndef USER_PINS
+#if defined(ESP32)
+#define USER_PINS configManager.getUserPins().c_str()
+#else
+#define USER_PINS ""
+#endif
+#endif
+
 String LLMClient::ask(const String &userMessage) {
   String provider = String(LLM_PROVIDER);
   provider.toLowerCase();
@@ -47,9 +59,17 @@ String LLMClient::askOpenAI(const String &userMessage) {
 
   JsonArray messages = requestDoc["messages"].to<JsonArray>();
 
+  String finalPrompt = String(SYSTEM_PROMPT) +
+                       "\n\nHardware Context: You are running on " +
+                       String(BOARD_INFO) +
+                       ". When controlling pins, ALWAYS use the integer "
+                       "value inside the bracket tool! e.g., [GPIO_ON: 2]."
+                       "\n\nUser Hardware Setup:\n" +
+                       String(USER_PINS);
+
   JsonObject systemMessage = messages.add<JsonObject>();
   systemMessage["role"] = "system";
-  systemMessage["content"] = SYSTEM_PROMPT;
+  systemMessage["content"] = finalPrompt;
 
   JsonObject userMsg = messages.add<JsonObject>();
   userMsg["role"] = "user";
@@ -146,7 +166,15 @@ String LLMClient::askAnthropic(const String &userMessage) {
   }
   requestDoc["model"] = modelToUse;
   requestDoc["max_tokens"] = 1024;
-  requestDoc["system"] = SYSTEM_PROMPT;
+  String finalPrompt = String(SYSTEM_PROMPT) +
+                       "\n\nHardware Context: You are running on " +
+                       String(BOARD_INFO) +
+                       ". When controlling pins, ALWAYS use the integer "
+                       "value inside the bracket tool! e.g., [GPIO_ON: 2]."
+                       "\n\nUser Hardware Setup:\n" +
+                       String(USER_PINS);
+
+  requestDoc["system"] = finalPrompt;
 
   JsonArray messages = requestDoc["messages"].to<JsonArray>();
 
@@ -225,7 +253,15 @@ String LLMClient::askGemini(const String &userMessage) {
       requestDoc["systemInstruction"].to<JsonObject>();
   JsonObject sysParts =
       systemInstruction["parts"].to<JsonArray>().add<JsonObject>();
-  sysParts["text"] = SYSTEM_PROMPT;
+  String finalPrompt = String(SYSTEM_PROMPT) +
+                       "\n\nHardware Context: You are running on " +
+                       String(BOARD_INFO) +
+                       ". When controlling pins, ALWAYS use the integer "
+                       "value inside the bracket tool! e.g., [GPIO_ON: 2]."
+                       "\n\nUser Hardware Setup:\n" +
+                       String(USER_PINS);
+
+  sysParts["text"] = finalPrompt;
 
   JsonArray contents = requestDoc["contents"].to<JsonArray>();
   JsonObject userContent = contents.add<JsonObject>();

@@ -43,6 +43,18 @@ Furthermore, users can configure **exactly what is connected** to the microcontr
 
 When you message the bot from anywhere in the world via **Telegram** (or the local Web UI) asking to *"turn on the fan"*, `espclaw` dynamically pieces together the base `SYSTEM_PROMPT`, the physical `BOARD_INFO`, and your custom `USER_PINS` hardware profile. The LLM instantly figures out which GPIO controls the fan and autonomously replies with the exact `[GPIO_ON: 4]` command.
 
+### Multi-ESP & Telegram Command Interface (ESP32)
+
+In v2.3+, `espclaw` supports dropping multiple ESP32 boards into the **same Telegram Group Chat**. You can assign each board a unique `Device ID` either dynamically or via the local WebUI. The boards will gracefully filter messages addressed to them.
+
+**Supported Multi-ESP Telegram Commands:**
+- `/setup`: Replies with connection services, LLM provider, and model info. Includes a warning that configuration text must be exact.
+- `/multiespclaw`: Globally sets the board into Multi-ESP mode, randomly generates a unique device ID (e.g. `esp6382`), and replies with the newly assigned ID.
+- `/gpiodescription` (or `/<deviceId> /gpiodescription`): Returns the device's currently saved hardware pin configuration description.
+- `/changegpiodescription <new details>` (or `/<deviceId> /changegpiodescription <new details>`): Instantly overwrites the saved device GPIO configuration dynamically without opening the WebUI.
+- `/<deviceId> /<newDeviceId>`: Instantly rename the device to a new ID.
+- `/<deviceId> <prompt>`: Allows you to chat with or send tooling commands exclusively to that specific board within the group chat! Messages not targeting the board's name are intelligently ignored to save memory cycles.
+
 ### Advanced ESP32 Features
 
 The ESP32 has plenty of horsepower (~320KB RAM in FreeRTOS). When `espclaw` detects an ESP32 build target during PlatformIO compilation (`#ifdef ESP32`), it unlocks the full feature set.

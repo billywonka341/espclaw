@@ -1,5 +1,8 @@
-# espclaw v2.2
+# espclaw v2.3
 
+> **v2.3 Release Update**
+> - 📡 **Multi-ESP Grouping**: Easily manage multiple espclaw devices in a single Telegram chat via unique `Device IDs` and new commands like `/setup`, `/multiespclaw`, and `/changegpiodescription`!
+>
 > **v2.2 Release Update (March 3, 2026)**
 > - 🔌 **Dynamic Hardware Control**: The AI now natively understands the physical pins of your specific board (e.g. D4 vs GPIO 2).
 > - 🎛️ **Web UI Configurable Pins**: You can now define exactly what hardware is connected to what pin (like fans or relays) directly in the WebUI so the AI knows exactly what to control!

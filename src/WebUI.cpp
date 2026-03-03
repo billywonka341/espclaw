@@ -175,6 +175,12 @@ const char index_html[] PROGMEM = R"rawliteral(
                 <select id="c_model" class="field"></select>
             </div>
             <div class="form-group"><label>API Key</label><input type="password" id="c_aiKey" class="field"></div>
+            <div class="form-group" style="flex-direction: row; align-items: center; gap: 0.5rem;">
+                <input type="checkbox" id="c_multiEsp" style="width: 1.2rem; height: 1.2rem;">
+                <label for="c_multiEsp" style="margin: 0; cursor: pointer;">Enable Multi-ESP Mode</label>
+            </div>
+            <div class="form-group"><label>Device ID</label><input type="text" id="c_deviceId" class="field" placeholder="e.g. node1"></div>
+            <div class="form-group"><label>Hardware Pins & Components</label><textarea id="c_pins" class="field" rows="3" placeholder="Example: GPIO 4 is a red LED. GPIO 5 is a Relay switch."></textarea></div>
             <button onclick="saveConfig()" style="margin-top: 1rem;">Save & Reboot</button>
         </div>
 
@@ -295,6 +301,9 @@ const char index_html[] PROGMEM = R"rawliteral(
             document.getElementById('c_provider').value = cfg.provider || 'openai';
             updateModels(cfg.model);
             document.getElementById('c_aiKey').value = cfg.aiKey || '';
+            document.getElementById('c_multiEsp').checked = cfg.multiEsp || false;
+            document.getElementById('c_deviceId').value = cfg.deviceId || '';
+            document.getElementById('c_pins').value = cfg.pins || '';
         }
 
         async function saveConfig() {
@@ -305,7 +314,10 @@ const char index_html[] PROGMEM = R"rawliteral(
                 tgChat: document.getElementById('c_tgChat').value,
                 provider: document.getElementById('c_provider').value,
                 model: document.getElementById('c_model').value,
-                aiKey: document.getElementById('c_aiKey').value
+                aiKey: document.getElementById('c_aiKey').value,
+                multiEsp: document.getElementById('c_multiEsp').checked,
+                deviceId: document.getElementById('c_deviceId').value,
+                pins: document.getElementById('c_pins').value
             };
             await fetch('/api/config', {
                 method: 'POST',
@@ -335,6 +347,9 @@ void initWebUI(WebChatCallback chatCallback) {
     doc["provider"] = configManager.getLlmProvider();
     doc["model"] = configManager.getLlmModel();
     doc["aiKey"] = configManager.getOpenAiApiKey();
+    doc["multiEsp"] = configManager.getMultiEspEnabled();
+    doc["deviceId"] = configManager.getDeviceId();
+    doc["pins"] = configManager.getUserPins();
     String out;
     serializeJson(doc, out);
     request->send(200, "application/json", out);
@@ -355,10 +370,14 @@ void initWebUI(WebChatCallback chatCallback) {
           configManager.saveTelegramConfig(doc["tgToken"] | "",
                                            doc["tgChat"] | "");
 
-          // Update API key, provider, and model, keeping existing prompt
+          configManager.setMultiEspConfig(doc["multiEsp"] | false,
+                                          doc["deviceId"] | "");
+
+          // Update API key, provider, model, and pins, keeping existing prompt
           configManager.saveLlmConfig(
               doc["aiKey"] | "", doc["provider"] | "openai",
-              doc["model"] | "gpt-3.5-turbo", configManager.getSystemPrompt());
+              doc["model"] | "gpt-3.5-turbo", configManager.getSystemPrompt(),
+              doc["pins"] | "");
 
           request->send(200, "application/json", "{\"status\":\"ok\"}");
           delay(500);
@@ -383,16 +402,43 @@ void initWebUI(WebChatCallback chatCallback) {
          size_t index, size_t total) {
         JsonDocument doc;
         DeserializationError error = deserializeJson(doc, data, len);
-        String replyText = "Error processing request.";
-        if (!error && onMessageCallback) {
-          String userMsg = doc["message"] | "";
-          onMessageCallback(userMsg, replyText);
+
+        if (error) {
+          request->send(400, "application/json",
+                        "{\"reply\":\"Error parsing JSON request.\"}");
+          return;
         }
-        JsonDocument outDoc;
-        outDoc["reply"] = replyText;
-        String outStr;
-        serializeJson(outDoc, outStr);
-        request->send(200, "application/json", outStr);
+
+        struct ChatTaskArgs {
+          AsyncWebServerRequest *request;
+          String message;
+        };
+
+        ChatTaskArgs *args = new ChatTaskArgs();
+        args->request = request;
+        args->message = doc["message"] | "";
+
+        // Dispatch to a FreeRTOS task to avoid blocking the AsyncTCP thread
+        // with HTTPS requests
+        xTaskCreate(
+            [](void *param) {
+              ChatTaskArgs *args = (ChatTaskArgs *)param;
+              String replyText = "Error processing request.";
+
+              if (onMessageCallback) {
+                onMessageCallback(args->message, replyText);
+              }
+
+              JsonDocument outDoc;
+              outDoc["reply"] = replyText;
+              String outStr;
+              serializeJson(outDoc, outStr);
+
+              args->request->send(200, "application/json", outStr);
+              delete args;
+              vTaskDelete(NULL);
+            },
+            "llm_chat_task", 10240, args, 1, NULL);
       });
 
   server.begin();

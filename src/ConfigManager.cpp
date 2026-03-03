@@ -27,8 +27,10 @@ void ConfigManager::loadAll() {
       "square brackets. For example:\n- To turn ON GPIO 4: [GPIO_ON: 4]\n- To "
       "turn OFF GPIO 4: [GPIO_OFF: 4]\n\nYou can explicitly chat with the user "
       "and answer general questions about any topic. Keep your responses "
-      "concise "
       "and helpful.");
+  userPins = preferences.getString("usrPins", "");
+  multiEspEnabled = preferences.getBool("multiEsp", false);
+  deviceId = preferences.getString("deviceId", "");
 }
 
 String ConfigManager::getWifiSsid() { return wifiSsid; }
@@ -39,6 +41,21 @@ String ConfigManager::getOpenAiApiKey() { return openAiApiKey; }
 String ConfigManager::getLlmProvider() { return llmProvider; }
 String ConfigManager::getLlmModel() { return llmModel; }
 String ConfigManager::getSystemPrompt() { return systemPrompt; }
+String ConfigManager::getUserPins() { return userPins; }
+bool ConfigManager::getMultiEspEnabled() { return multiEspEnabled; }
+String ConfigManager::getDeviceId() { return deviceId; }
+
+void ConfigManager::setUserPins(const String &pins) {
+  userPins = pins;
+  preferences.putString("usrPins", userPins);
+}
+
+void ConfigManager::setMultiEspConfig(bool enabled, const String &devId) {
+  multiEspEnabled = enabled;
+  deviceId = devId;
+  preferences.putBool("multiEsp", multiEspEnabled);
+  preferences.putString("deviceId", deviceId);
+}
 
 void ConfigManager::saveWifiConfig(const String &ssid, const String &password) {
   wifiSsid = ssid;
@@ -56,15 +73,18 @@ void ConfigManager::saveTelegramConfig(const String &botToken,
 }
 
 void ConfigManager::saveLlmConfig(const String &apiKey, const String &provider,
-                                  const String &model, const String &prompt) {
+                                  const String &model, const String &prompt,
+                                  const String &pins) {
   openAiApiKey = apiKey;
   llmProvider = provider;
   llmModel = model;
   systemPrompt = prompt;
+  userPins = pins;
   preferences.putString("aiKey", openAiApiKey);
   preferences.putString("llmProv", llmProvider);
   preferences.putString("llmMode", llmModel);
   preferences.putString("sysPrompt", systemPrompt);
+  preferences.putString("usrPins", userPins);
 }
 
 #endif
