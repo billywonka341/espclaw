@@ -150,6 +150,28 @@ void onTelegramMessage(const String &chatId, const String &text) {
 #if defined(ESP32)
 void onWebChatMessage(const String &message, String &response) {
   appLogger.logf("Web Chat Message: %s\n", message.c_str());
+
+  if (message.startsWith("/gpiodescription")) {
+    response =
+        "Currently saved hardware definition: \n" + configManager.getUserPins();
+    return;
+  }
+
+  if (message.startsWith("/changegpiodescription ")) {
+    String newPins =
+        message.substring(String("/changegpiodescription ").length());
+    newPins.trim();
+    configManager.setUserPins(newPins);
+    response = "Hardware definition successfully updated to: \n" + newPins;
+    return;
+  }
+
+  if (message.startsWith("/setup") || message.startsWith("/multiespclaw")) {
+    response =
+        "This command shouldn't be used typically on the WebUI. Use Telegram!";
+    return;
+  }
+
   response = LLMClient::ask(message);
   executeTools(response);
 }
@@ -217,4 +239,8 @@ void loop() {
       lastPollTime = millis();
     }
   }
+
+#if defined(ESP32)
+  loopWebUI();
+#endif
 }

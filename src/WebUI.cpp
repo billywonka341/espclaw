@@ -7,6 +7,11 @@
 AsyncWebServer server(80);
 static WebChatCallback onMessageCallback = nullptr;
 
+static String queuedWebMsg = "";
+static bool isProcessingWebMsg = false;
+static String readyWebReply = "";
+static bool webReplyReady = false;
+
 const char index_html[] PROGMEM = R"rawliteral(
 <!DOCTYPE html>
 <html lang="en">
@@ -267,14 +272,30 @@ const char index_html[] PROGMEM = R"rawliteral(
             loader.style.display = 'flex';
             
             try {
+                // Post command
                 const res = await fetch('/api/chat', {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
                     body: JSON.stringify({message: text})
                 });
-                const data = await res.json();
-                loader.style.display = 'none';
-                appendMsg(data.reply, 'bot');
+                
+                if (!res.ok) throw new Error("Failed");
+                
+                // Poll for reply
+                while (true) {
+                    await new Promise(r => setTimeout(r, 1000));
+                    try {
+                        const pollRes = await fetch('/api/chat/reply');
+                        if (pollRes.ok) {
+                            const pollData = await pollRes.json();
+                            if (pollData.status === 'done') {
+                                loader.style.display = 'none';
+                                appendMsg(pollData.reply, 'bot');
+                                break;
+                            }
+                        }
+                    } catch (e) {}
+                }
             } catch (err) {
                 loader.style.display = 'none';
                 appendMsg('Error communicating with ESP32.', 'bot');
@@ -404,44 +425,49 @@ void initWebUI(WebChatCallback chatCallback) {
         DeserializationError error = deserializeJson(doc, data, len);
 
         if (error) {
-          request->send(400, "application/json",
-                        "{\"reply\":\"Error parsing JSON request.\"}");
+          request->send(400, "application/json", "{\"status\":\"error\"}");
           return;
         }
 
-        struct ChatTaskArgs {
-          AsyncWebServerRequest *request;
-          String message;
-        };
+        if (isProcessingWebMsg || webReplyReady) {
+          request->send(429, "application/json", "{\"status\":\"busy\"}");
+          return;
+        }
 
-        ChatTaskArgs *args = new ChatTaskArgs();
-        args->request = request;
-        args->message = doc["message"] | "";
+        queuedWebMsg = doc["message"] | "";
+        isProcessingWebMsg = true;
+        webReplyReady = false;
 
-        // Dispatch to a FreeRTOS task to avoid blocking the AsyncTCP thread
-        // with HTTPS requests
-        xTaskCreate(
-            [](void *param) {
-              ChatTaskArgs *args = (ChatTaskArgs *)param;
-              String replyText = "Error processing request.";
-
-              if (onMessageCallback) {
-                onMessageCallback(args->message, replyText);
-              }
-
-              JsonDocument outDoc;
-              outDoc["reply"] = replyText;
-              String outStr;
-              serializeJson(outDoc, outStr);
-
-              args->request->send(200, "application/json", outStr);
-              delete args;
-              vTaskDelete(NULL);
-            },
-            "llm_chat_task", 10240, args, 1, NULL);
+        request->send(200, "application/json", "{\"status\":\"queued\"}");
       });
+
+  server.on("/api/chat/reply", HTTP_GET, [](AsyncWebServerRequest *request) {
+    if (webReplyReady) {
+      JsonDocument outDoc;
+      outDoc["status"] = "done";
+      outDoc["reply"] = readyWebReply;
+      String outStr;
+      serializeJson(outDoc, outStr);
+      request->send(200, "application/json", outStr);
+      webReplyReady = false; // Reset for next message
+    } else {
+      request->send(200, "application/json", "{\"status\":\"pending\"}");
+    }
+  });
 
   server.begin();
   appLogger.log("WebUI started on HTTP port 80");
+}
+
+void loopWebUI() {
+  if (isProcessingWebMsg) {
+    String replyText = "Error processing request.";
+    if (onMessageCallback) {
+      onMessageCallback(queuedWebMsg, replyText);
+    }
+    readyWebReply = replyText;
+    webReplyReady = true;
+    isProcessingWebMsg = false;
+  }
 }
 #endif
