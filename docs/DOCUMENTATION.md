@@ -11,6 +11,8 @@ Welcome to `espclaw`, an AI system scaled down for microcontrollers.
 At its core, `espclaw` listens for triggers (like a Telegram message or Local Web UI post), asks an external LLM (like OpenAI) what to do using a strictly formatted prompt, parses the LLM's response, and executes the actions (tools) before replying.
 
 ### The ESP8266 Memory Challenge
+> ⚠️ **ESP8266 heads up**: This build is more of a "can we even do this" experiment than a production-ready deployment. It skips SSL validation to fit inside 80KB of RAM, which has real security tradeoffs. If you're deploying this for actual home control, the ESP32 version is the safer choice.
+
 ESP8266 only has ~80KB of RAM.
 - **TLS Challenge**: TLS usually requires establishing a secure connection and verifying the server's certificate chain. A typical CA bundle takes massive amounts of RAM (and SPIFFS storage). `espclaw` uses `client.setInsecure()` to skip the CA verification. Furthermore, standard ESP32 TLS buffers are 16KB. `espclaw` overrides these to 2KB RX and 512B-1KB TX.
 - **JSON Challenge**: LLM responses contain massive JSON objects. If `espclaw` tried to parse an API response using standard deserialization, it would OOM instantly. Instead, ArduinoJson 7 is configured with a `<Filter>` document depending on the provider:

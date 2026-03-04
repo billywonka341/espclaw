@@ -26,6 +26,8 @@ The smartest, smallest AI personal assistant designed to run on incredibly const
 
 With extensive optimizations, `espclaw` brings LLMs (OpenAI, Anthropic, OpenRouter) straight to your local network and Telegram, making your microcontroller truly intelligent.
 
+> ⚠️ **ESP8266 heads up**: This build is more of a "can we even do this" experiment than a production-ready deployment. It skips SSL validation to fit inside 80KB of RAM, which has real security tradeoffs. If you're deploying this for actual home control, the ESP32 version is the safer choice.
+
 ---
 
 ## 🚀 Features

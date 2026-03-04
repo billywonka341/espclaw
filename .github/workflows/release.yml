@@ -103,6 +103,8 @@ jobs:
           body: |
             ## 🚀 espclaw ${{ github.ref_name }} is here!
             
+            > ⚠️ **ESP8266 heads up**: This build is more of a "can we even do this" experiment than a production-ready deployment. It skips SSL validation to fit inside 80KB of RAM, which has real security tradeoffs. If you're deploying this for actual home control, the ESP32 version is the safer choice.
+            
             The smartest, smallest AI personal assistant designed to run on incredibly constrained hardware (ESP8266) while seamlessly scaling up to powerful capabilities on the ESP32.
             
             ### ✨ Features in this release
