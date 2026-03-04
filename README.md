@@ -3,6 +3,13 @@
 > **v2.4 Release Update (March 4, 2026)**
 > - 🏠 **Home Assistant Integration**: Natively control your Home Assistant devices or read sensor data directly via the LLM.
 > - 📡 **Sensor Pre-fetching**: Instantly read HA sensor states before the AI answers, giving it real-time context of your home.
+> - ![Home Assistant Setup settings](docs/assets/HA-setup.png)
+> - ![Home Assistant Setup Preview. Note: setup as sensor in this photo](docs/assets/HA-setup-preview.png)
+> - ![Home Assistant values preview in AI chat](docs/assets/HA-chat-preview.png)
+
+
+
+> - 
 >
 > **v2.3 Release Update**
 > - 📡 **Multi-ESP Grouping**: Easily manage multiple espclaw devices in a single Telegram chat via unique `Device IDs` and new commands like `/setup`, `/multiespclaw`, and `/changegpiodescription`!
