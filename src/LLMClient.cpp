@@ -1,4 +1,5 @@
 #include "LLMClient.h"
+#include "ConfigManager.h"
 #include "Logger.h"
 #include "config.h"
 #include <ArduinoJson.h>
