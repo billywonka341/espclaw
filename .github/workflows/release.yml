@@ -54,6 +54,8 @@ jobs:
           #define USER_PINS ""
           #define MULTI_ESP_ENABLED false
           #define DEVICE_ID ""
+          #define HA_TOKEN ""
+          #define HA_URLS "[]"
           #endif
           EOF
 
