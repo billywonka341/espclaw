@@ -31,6 +31,8 @@ void ConfigManager::loadAll() {
   userPins = preferences.getString("usrPins", "");
   multiEspEnabled = preferences.getBool("multiEsp", false);
   deviceId = preferences.getString("deviceId", "");
+  haToken = preferences.getString("haToken", "");
+  haUrls = preferences.getString("haUrls", "[]");
 }
 
 String ConfigManager::getWifiSsid() { return wifiSsid; }
@@ -44,6 +46,8 @@ String ConfigManager::getSystemPrompt() { return systemPrompt; }
 String ConfigManager::getUserPins() { return userPins; }
 bool ConfigManager::getMultiEspEnabled() { return multiEspEnabled; }
 String ConfigManager::getDeviceId() { return deviceId; }
+String ConfigManager::getHaToken() { return haToken; }
+String ConfigManager::getHaUrls() { return haUrls; }
 
 void ConfigManager::setUserPins(const String &pins) {
   userPins = pins;
@@ -85,6 +89,13 @@ void ConfigManager::saveLlmConfig(const String &apiKey, const String &provider,
   preferences.putString("llmMode", llmModel);
   preferences.putString("sysPrompt", systemPrompt);
   preferences.putString("usrPins", userPins);
+}
+
+void ConfigManager::saveHaConfig(const String &token, const String &urls) {
+  haToken = token;
+  haUrls = urls;
+  preferences.putString("haToken", haToken);
+  preferences.putString("haUrls", haUrls);
 }
 
 #endif

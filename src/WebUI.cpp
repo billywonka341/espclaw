@@ -136,6 +136,12 @@ const char index_html[] PROGMEM = R"rawliteral(
         label { font-size: 0.9rem; color: var(--text-muted); font-weight: 600; }
         input.field { background: rgba(0,0,0,0.2); border: 1px solid var(--glass-border); color: white; padding: 0.75rem 1rem; border-radius: 8px; outline: none; transition: border-color 0.3s; }
         input.field:focus { border-color: var(--primary); }
+        .ha-url-item { display: flex; gap: 0.5rem; align-items: center; margin-bottom: 0.5rem; flex-wrap: wrap; border: 1px solid var(--glass-border); padding: 0.5rem; border-radius: 8px;}
+        .ha-url-item input[type="text"] { flex: 1; min-width: 200px;}
+        .ha-url-item label { display: flex; align-items: center; gap: 0.25rem; font-size: 0.8rem; cursor: pointer; color: var(--text-main);}
+        .btn-small { padding: 0.25rem 0.5rem; font-size: 0.8rem; border-radius: 0.5rem; }
+        .btn-add { background: #10b981; } .btn-add:hover { background: #059669; }
+        .btn-rm { background: #ef4444; } .btn-rm:hover { background: #dc2626; }
     </style>
 </head>
 <body>
@@ -186,6 +192,16 @@ const char index_html[] PROGMEM = R"rawliteral(
             </div>
             <div class="form-group"><label>Device ID</label><input type="text" id="c_deviceId" class="field" placeholder="e.g. node1"></div>
             <div class="form-group"><label>Hardware Pins & Components</label><textarea id="c_pins" class="field" rows="3" placeholder="Example: GPIO 4 is a red LED. GPIO 5 is a Relay switch."></textarea></div>
+            <hr style="border-color: var(--glass-border); margin: 1rem 0;">
+            <h3>Home Assistant Integration</h3>
+            <div class="form-group"><label>HA Long-Lived Access Token</label><input type="password" id="c_haToken" class="field" placeholder="Bearer eyJhbGciOiJIUzI1Ni..."></div>
+            <div class="form-group">
+                <label style="display: flex; justify-content: space-between; align-items: center;">
+                    <span>HA URLs & Descriptions</span>
+                    <button type="button" class="btn-small btn-add" onclick="addHaUrl()">+ Add URL</button>
+                </label>
+                <div id="haUrlsContainer"></div>
+            </div>
             <button onclick="saveConfig()" style="margin-top: 1rem;">Save & Reboot</button>
         </div>
 
@@ -325,6 +341,27 @@ const char index_html[] PROGMEM = R"rawliteral(
             document.getElementById('c_multiEsp').checked = cfg.multiEsp || false;
             document.getElementById('c_deviceId').value = cfg.deviceId || '';
             document.getElementById('c_pins').value = cfg.pins || '';
+            document.getElementById('c_haToken').value = cfg.haToken || '';
+            
+            const urlsContainer = document.getElementById('haUrlsContainer');
+            urlsContainer.innerHTML = '';
+            try {
+                const urls = JSON.parse(cfg.haUrls || '[]');
+                urls.forEach(item => addHaUrl(item.url, item.desc, item.isSensor));
+            } catch(e) {}
+            if (urlsContainer.children.length === 0) addHaUrl();
+        }
+
+        function addHaUrl(url = '', desc = '', isSensor = false) {
+            const div = document.createElement('div');
+            div.className = 'ha-url-item';
+            div.innerHTML = `
+                <input type="text" class="field ha-u" placeholder="URL (e.g. http://ha.local:8123/api/...)" value="${url}">
+                <input type="text" class="field ha-d" placeholder="Description (e.g. Living Rm Light ON)" value="${desc}">
+                <label><input type="checkbox" class="ha-s" ${isSensor ? 'checked' : ''}> Read Sensor</label>
+                <button type="button" class="btn-small btn-rm" onclick="this.parentElement.remove()">X</button>
+            `;
+            document.getElementById('haUrlsContainer').appendChild(div);
         }
 
         async function saveConfig() {
@@ -338,7 +375,13 @@ const char index_html[] PROGMEM = R"rawliteral(
                 aiKey: document.getElementById('c_aiKey').value,
                 multiEsp: document.getElementById('c_multiEsp').checked,
                 deviceId: document.getElementById('c_deviceId').value,
-                pins: document.getElementById('c_pins').value
+                pins: document.getElementById('c_pins').value,
+                haToken: document.getElementById('c_haToken').value,
+                haUrls: JSON.stringify(Array.from(document.querySelectorAll('.ha-url-item')).map(div => ({
+                    url: div.querySelector('.ha-u').value,
+                    desc: div.querySelector('.ha-d').value,
+                    isSensor: div.querySelector('.ha-s').checked
+                })).filter(item => item.url && item.desc))
             };
             await fetch('/api/config', {
                 method: 'POST',
@@ -371,6 +414,8 @@ void initWebUI(WebChatCallback chatCallback) {
     doc["multiEsp"] = configManager.getMultiEspEnabled();
     doc["deviceId"] = configManager.getDeviceId();
     doc["pins"] = configManager.getUserPins();
+    doc["haToken"] = configManager.getHaToken();
+    doc["haUrls"] = configManager.getHaUrls();
     String out;
     serializeJson(doc, out);
     request->send(200, "application/json", out);
@@ -399,6 +444,8 @@ void initWebUI(WebChatCallback chatCallback) {
               doc["aiKey"] | "", doc["provider"] | "openai",
               doc["model"] | "gpt-3.5-turbo", configManager.getSystemPrompt(),
               doc["pins"] | "");
+
+          configManager.saveHaConfig(doc["haToken"] | "", doc["haUrls"] | "[]");
 
           request->send(200, "application/json", "{\"status\":\"ok\"}");
           delay(500);

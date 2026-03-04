@@ -3,11 +3,14 @@
 #include "config.h"
 #include "version.h"
 #include <Arduino.h>
+#include <ArduinoJson.h>
 #if defined(ESP8266)
+#include <ESP8266HTTPClient.h>
 #include <ESP8266WiFi.h>
 #elif defined(ESP32)
 #include "ConfigManager.h"
 #include "WebUI.h"
+#include <HTTPClient.h>
 #include <WiFi.h>
 #endif
 
@@ -38,6 +41,47 @@ void executeTools(const String &llmResponse) {
       pinMode(pin, OUTPUT);
       digitalWrite(pin, LOW);
       appLogger.logf("TOOL: Toggled GPIO %d OFF\n", pin);
+    } else if (command.startsWith("HA_CALL:")) {
+      int haIndex = command.substring(8).toInt();
+      appLogger.logf("TOOL: Triggered Home Assistant Call index %d\n", haIndex);
+
+#if defined(ESP32)
+      String urlsStr = configManager.getHaUrls();
+      String token = configManager.getHaToken();
+#else
+      String urlsStr = HA_URLS;
+      String token = HA_TOKEN;
+#endif
+
+      JsonDocument doc;
+      if (!deserializeJson(doc, urlsStr) && doc.is<JsonArray>()) {
+        JsonArray arr = doc.as<JsonArray>();
+        if (haIndex >= 0 && (size_t)haIndex < arr.size()) {
+          String targetUrl = arr[haIndex]["url"].as<String>();
+          appLogger.log("Executing HA POST to: " + targetUrl);
+
+          WiFiClient client;
+          HTTPClient http;
+          if (http.begin(client, targetUrl)) {
+            http.addHeader("Content-Type", "application/json");
+            if (token.length() > 0) {
+              http.addHeader("Authorization", "Bearer " + token);
+            }
+            int httpCode =
+                http.POST("{}"); // empty JSON required for many HA calls
+            appLogger.logf("HA Response Code: %d\n", httpCode);
+            if (httpCode > 0) {
+              String payload = http.getString();
+              appLogger.log("HA Response: " + payload);
+            }
+            http.end();
+          } else {
+            appLogger.log("Failed to begin HTTP client to HA");
+          }
+        } else {
+          appLogger.log("Invalid HA index requested by LLM.");
+        }
+      }
     }
 
     index = endIndex + 1;

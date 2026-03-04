@@ -43,6 +43,15 @@ Furthermore, users can configure **exactly what is connected** to the microcontr
 
 When you message the bot from anywhere in the world via **Telegram** (or the local Web UI) asking to *"turn on the fan"*, `espclaw` dynamically pieces together the base `SYSTEM_PROMPT`, the physical `BOARD_INFO`, and your custom `USER_PINS` hardware profile. The LLM instantly figures out which GPIO controls the fan and autonomously replies with the exact `[GPIO_ON: 4]` command.
 
+### Home Assistant Integration & Sensor Pre-Fetching
+In v2.4+, `espclaw` adds native support for Home Assistant (HA), acting as an intelligent bridge to your smart home.
+
+**Action Execution (`[HA_CALL: X]`)**
+Users can configure HA action URLs (e.g., `http://<ha-ip>:8123/api/services/<domain>/<service>`) accompanied by natural language descriptions. These definitions are injected into the LLM `SYSTEM_PROMPT` automatically. When the LLM decides to trigger an action, it outputs an `[HA_CALL: X]` tooling syntax. The ESP's main loop intercepts this and fires an HTTP POST to Home Assistant using your Long-Lived Access Token.
+
+**Sensor Pre-Fetching**
+The integration supports querying HA sensors *before* hitting the LLM API. By flagging specific HA URLs as `isSensor` (via the Web UI checkbox or JSON structure in `config.h`), `espclaw` will fire an HTTP GET request to pull the entity's JSON state during the system prompt assembly phase. This state value is directly appended to the `SYSTEM_PROMPT`. This gives the AI immediate knowledge of your home environment, preventing double-round-trip tooling queries and speeding up response times.
+
 ### Multi-ESP & Telegram Command Interface (ESP32)
 
 In v2.3+, `espclaw` supports dropping multiple ESP32 boards into the **same Telegram Group Chat**. You can assign each board a unique `Device ID` either dynamically or via the local WebUI. The boards will gracefully filter messages addressed to them.

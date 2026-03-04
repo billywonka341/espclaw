@@ -21,6 +21,8 @@ public:
   String getUserPins();
   bool getMultiEspEnabled();
   String getDeviceId();
+  String getHaToken();
+  String getHaUrls();
 
   // Setters
   void setUserPins(const String &pins);
@@ -30,6 +32,7 @@ public:
   void saveLlmConfig(const String &apiKey, const String &provider,
                      const String &model, const String &prompt,
                      const String &pins);
+  void saveHaConfig(const String &token, const String &urls);
 
 private:
   Preferences preferences;
@@ -45,6 +48,8 @@ private:
   String userPins;
   bool multiEspEnabled;
   String deviceId;
+  String haToken;
+  String haUrls;
 
   void loadAll();
 };
