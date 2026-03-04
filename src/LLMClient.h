@@ -11,4 +11,7 @@ private:
   static String askOpenAI(const String &userMessage);
   static String askAnthropic(const String &userMessage);
   static String askGemini(const String &userMessage);
+
+  // Helper method to gather and log HA instructions
+  static String getHAInstructions();
 };

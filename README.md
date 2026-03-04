@@ -1,5 +1,9 @@
-# espclaw v2.3
+# espclaw v2.4
 
+> **v2.4 Release Update (March 4, 2026)**
+> - 🏠 **Home Assistant Integration**: Natively control your Home Assistant devices or read sensor data directly via the LLM.
+> - 📡 **Sensor Pre-fetching**: Instantly read HA sensor states before the AI answers, giving it real-time context of your home.
+>
 > **v2.3 Release Update**
 > - 📡 **Multi-ESP Grouping**: Easily manage multiple espclaw devices in a single Telegram chat via unique `Device IDs` and new commands like `/setup`, `/multiespclaw`, and `/changegpiodescription`!
 >
@@ -34,6 +38,47 @@ With extensive optimizations, `espclaw` brings LLMs (OpenAI, Anthropic, OpenRout
 1. **ESP32**: Open the *Config* tab in the Web UI. Under the **Hardware Pins & Components** box, simply tell the AI what you plugged in in plain English! (e.g., *"GPIO 4 is connected to the living room fan relay. GPIO 13 is the red LED."*)
 2. **ESP8266**: Open `src/config.h` and edit the `#define USER_PINS` string with the same English description.
 3. Open Telegram and message your bot: *"Can you turn on the living room fan?"* The AI will automatically read your hardware definitions, figure out that the fan is on pin 4, and silently toggle the GPIO high!
+
+### 🏠 Home Assistant Integration
+`espclaw` v2.4 introduces native integration with your local Home Assistant instance, allowing the AI to physically control your smart home or answer questions about your environment!
+
+**Prerequisite:**
+You need a Long-Lived Access Token from Home Assistant. 
+1. Log in to your Home Assistant dashboard.
+2. Click on your Profile name (bottom left corner).
+3. Go to the **Security** tab.
+4. Scroll down to **Long-Lived Access Tokens** and click **Create Token**. Save this token securely!
+
+**How to Configure (ESP32):**
+1. Open the Web UI configuration portal.
+2. Scroll to the **Home Assistant Integration** section.
+3. Paste your generated token into the `HA Long-Lived Access Token` field.
+4. Use the dynamic list to add your Home Assistant URLs.
+   - **For Actions (e.g., turning on a light):** Use `http://<your-ha-ip>:8123/api/services/<domain>/<service>`. Do *not* check the "Read Sensor" box. Provide a description like "Turns on the porch light."
+   - **For Sensors (e.g., reading a thermometer):** Use `http://<your-ha-ip>:8123/api/states/<domain>.<entity_id>`. **Check the "Read Sensor" box!** Provide a description like "Living Room Temperature."
+5. Save and reboot. The AI will pre-fetch checked sensors *before* replying, answering questions accurately!
+
+**How to Configure (ESP8266):**
+Since the ESP8266 lacks a dynamic config UI, you configure this directly in `src/config.h`:
+1. Set `#define HA_TOKEN "your_long_lived_token"`.
+2. Format the `#define HA_URLS` as a JSON array string:
+   ```cpp
+   #define HA_URLS "[{\"url\": \"http://<ha-ip>:8123/api/states/sensor.temp\", \"desc\": \"Room Temp\", \"isSensor\": true}]"
+   ```
+
+### 🐞 Debugging & Logging
+If your AI isn't responding or Home Assistant sensors seem unavailable, `espclaw` has comprehensive real-time logging to help you diagnose the issue!
+
+**How to check the logs:**
+1. **ESP32:** Open the Web UI, and click on the "Logs" tab at the top.
+2. **ESP8266:** Open the Serial Monitor in VS Code (baud rate 115200) while the device is connected via USB.
+
+**What to look for:**
+- **HA Fetch: `<url>`**: Shows the exact Home Assistant URL being polled.
+- **HA HTTP Code: `<code_number>`**: Look for `200` (success). If you see `-1` (Connection Failed) or `401` (Unauthorized), check your HA IP address and Long-Lived Access Token.
+- **HA Payload: `<json>`**: The raw JSON returned by Home Assistant. If it says `error parsing JSON`, the payload might be corrupted or in an unexpected format.
+- **--- Executing Request ---**: Shows the exact synthesized `curl` command being sent to Anthropic, Gemini, or OpenAI.
+- **--- Raw Response ---**: Shows the exact raw JSON reply from the provider. If the AI is failing to reply, check this raw response for `error` fields like "insufficient_quota" or "invalid_api_key".
 
 ---
 

@@ -4,8 +4,10 @@
 #include <ArduinoJson.h>
 
 #if defined(ESP8266)
+#include <ESP8266HTTPClient.h>
 #include <ESP8266WiFi.h>
 #elif defined(ESP32)
+#include <HTTPClient.h>
 #include <WiFi.h>
 #endif
 
@@ -23,6 +25,14 @@
 #endif
 #endif
 
+#ifndef HA_URLS
+#if defined(ESP32)
+#define HA_URLS configManager.getHaUrls().c_str()
+#else
+#define HA_URLS "[]"
+#endif
+#endif
+
 String LLMClient::ask(const String &userMessage) {
   String provider = String(LLM_PROVIDER);
   provider.toLowerCase();
@@ -34,6 +44,75 @@ String LLMClient::ask(const String &userMessage) {
   } else {
     return askOpenAI(userMessage);
   }
+}
+
+String LLMClient::getHAInstructions() {
+  String haInstr = "";
+  JsonDocument haDocs;
+  if (!deserializeJson(haDocs, HA_URLS) && haDocs.is<JsonArray>()) {
+    JsonArray arr = haDocs.as<JsonArray>();
+    if (arr.size() > 0) {
+#if defined(ESP32)
+      String haToken = configManager.getHaToken();
+#else
+      String haToken = HA_TOKEN;
+#endif
+      appLogger.logf("HA: Found %d configured entities", (int)arr.size());
+      haInstr = "\n\nHome Assistant Actions available:\n";
+      bool hasActions = false;
+      bool hasSensors = false;
+      for (size_t i = 0; i < arr.size(); i++) {
+        bool isSensor = arr[i]["isSensor"] | false;
+        String desc = arr[i]["desc"].as<String>();
+        if (isSensor) {
+          if (!hasSensors) {
+            haInstr += "\nHome Assistant Sensor States:\n";
+            hasSensors = true;
+          }
+          String targetUrl = arr[i]["url"].as<String>();
+          appLogger.log("HA Fetch: " + targetUrl);
+          WiFiClient clientHA;
+          HTTPClient httpHA;
+          if (httpHA.begin(clientHA, targetUrl)) {
+            if (haToken.length() > 0) {
+              httpHA.addHeader("Authorization", "Bearer " + haToken);
+            }
+            int httpCode = httpHA.GET();
+            appLogger.logf("HA HTTP Code: %d", httpCode);
+            if (httpCode > 0) {
+              String payload = httpHA.getString();
+              appLogger.log("HA Payload: " + payload);
+              JsonDocument sensorDoc;
+              if (!deserializeJson(sensorDoc, payload)) {
+                String state = sensorDoc["state"] | "unknown";
+                haInstr += "- " + desc + ": " + state + "\n";
+              } else {
+                appLogger.log("HA JSON Parse Error");
+                haInstr += "- " + desc + ": error parsing JSON\n";
+              }
+            } else {
+              haInstr += "- " + desc + ": error fetching\n";
+            }
+            httpHA.end();
+          } else {
+            appLogger.log("HA Connection Failed");
+            haInstr += "- " + desc + ": connection failed\n";
+          }
+        } else {
+          if (!hasActions) {
+            haInstr += "\nHome Assistant Actions available:\n";
+            hasActions = true;
+          }
+          haInstr += String(i) + ": " + desc + "\n";
+        }
+      }
+      if (hasActions) {
+        haInstr += "To trigger an action, output the tool command [HA_CALL: "
+                   "<index>], e.g., [HA_CALL: 0].";
+      }
+    }
+  }
+  return haInstr;
 }
 
 String LLMClient::askOpenAI(const String &userMessage) {
@@ -59,13 +138,15 @@ String LLMClient::askOpenAI(const String &userMessage) {
 
   JsonArray messages = requestDoc["messages"].to<JsonArray>();
 
+  String haInstr = getHAInstructions();
+
   String finalPrompt = String(SYSTEM_PROMPT) +
                        "\n\nHardware Context: You are running on " +
                        String(BOARD_INFO) +
                        ". When controlling pins, ALWAYS use the integer "
                        "value inside the bracket tool! e.g., [GPIO_ON: 2]."
                        "\n\nUser Hardware Setup:\n" +
-                       String(USER_PINS);
+                       String(USER_PINS) + haInstr;
 
   JsonObject systemMessage = messages.add<JsonObject>();
   systemMessage["role"] = "system";
@@ -99,9 +180,12 @@ String LLMClient::askOpenAI(const String &userMessage) {
   client.println();
   client.print(requestBody);
 
-  // Wait for response and skip headers
+  bool isChunked = false;
   while (client.connected()) {
     String line = client.readStringUntil('\n');
+    if (line.startsWith("Transfer-Encoding: chunked")) {
+      isChunked = true;
+    }
     if (line == "\r") {
       // End of headers
       break;
@@ -116,8 +200,35 @@ String LLMClient::askOpenAI(const String &userMessage) {
   filter["error"] = true; // Also catch API errors
 
   JsonDocument responseDoc;
-  DeserializationError error = deserializeJson(
-      responseDoc, client, DeserializationOption::Filter(filter));
+  DeserializationError error;
+
+  if (isChunked) {
+    String body = "";
+    while (client.connected()) {
+      String hexSize = client.readStringUntil('\n');
+      hexSize.trim();
+      if (hexSize.length() == 0)
+        continue;
+      long chunkSize = strtol(hexSize.c_str(), NULL, 16);
+      if (chunkSize == 0)
+        break;
+
+      size_t readLen = 0;
+      while (readLen < (size_t)chunkSize && client.connected()) {
+        if (client.available()) {
+          char c = client.read();
+          body += c;
+          readLen++;
+        }
+      }
+      client.readStringUntil('\n');
+    }
+    error = deserializeJson(responseDoc, body,
+                            DeserializationOption::Filter(filter));
+  } else {
+    error = deserializeJson(responseDoc, client,
+                            DeserializationOption::Filter(filter));
+  }
 
   // Log response payload representation
   String responseDebug;
@@ -152,9 +263,9 @@ String LLMClient::askAnthropic(const String &userMessage) {
   client.setBufferSizes(2048, 1024);
 #endif
 
-  Serial.println("LLM: Connecting to api.anthropic.com...");
+  appLogger.log("LLM: Connecting to api.anthropic.com...");
   if (!client.connect("api.anthropic.com", 443)) {
-    Serial.println("LLM: Connection failed!");
+    appLogger.log("LLM: Connection failed!");
     return "Error: Could not connect to Anthropic API.";
   }
 
@@ -162,17 +273,19 @@ String LLMClient::askAnthropic(const String &userMessage) {
   JsonDocument requestDoc;
   String modelToUse = String(LLM_MODEL);
   if (modelToUse == "gpt-3.5-turbo") {
-    modelToUse = "claude-sonnet-4-6"; // Auto-correct default
+    modelToUse = "claude-3-haiku-20240307"; // Auto-correct default
   }
   requestDoc["model"] = modelToUse;
   requestDoc["max_tokens"] = 1024;
+  String haInstr = getHAInstructions();
+
   String finalPrompt = String(SYSTEM_PROMPT) +
                        "\n\nHardware Context: You are running on " +
                        String(BOARD_INFO) +
                        ". When controlling pins, ALWAYS use the integer "
                        "value inside the bracket tool! e.g., [GPIO_ON: 2]."
                        "\n\nUser Hardware Setup:\n" +
-                       String(USER_PINS);
+                       String(USER_PINS) + haInstr;
 
   requestDoc["system"] = finalPrompt;
 
@@ -184,6 +297,14 @@ String LLMClient::askAnthropic(const String &userMessage) {
 
   String requestBody;
   serializeJson(requestDoc, requestBody);
+
+  String curlCmd = "curl https://api.anthropic.com/v1/messages \\\n";
+  curlCmd += "  -H \"Content-Type: application/json\" \\\n";
+  curlCmd += "  -H \"x-api-key: " + String(OPENAI_API_KEY) + "\" \\\n";
+  curlCmd += "  -H \"anthropic-version: 2023-06-01\" \\\n";
+  curlCmd += "  -d '" + requestBody + "'";
+  appLogger.log("\n--- Executing Anthropic Request ---");
+  appLogger.log(curlCmd);
 
   client.println("POST /v1/messages HTTP/1.1");
   client.println("Host: api.anthropic.com");
@@ -197,8 +318,12 @@ String LLMClient::askAnthropic(const String &userMessage) {
   client.println();
   client.print(requestBody);
 
+  bool isChunked = false;
   while (client.connected()) {
     String line = client.readStringUntil('\n');
+    if (line.startsWith("Transfer-Encoding: chunked")) {
+      isChunked = true;
+    }
     if (line == "\r") {
       break;
     }
@@ -210,8 +335,40 @@ String LLMClient::askAnthropic(const String &userMessage) {
   filter["error"] = true;
 
   JsonDocument responseDoc;
-  DeserializationError error = deserializeJson(
-      responseDoc, client, DeserializationOption::Filter(filter));
+  DeserializationError error;
+
+  if (isChunked) {
+    String body = "";
+    while (client.connected()) {
+      String hexSize = client.readStringUntil('\n');
+      hexSize.trim();
+      if (hexSize.length() == 0)
+        continue;
+      long chunkSize = strtol(hexSize.c_str(), NULL, 16);
+      if (chunkSize == 0)
+        break;
+
+      size_t readLen = 0;
+      while (readLen < (size_t)chunkSize && client.connected()) {
+        if (client.available()) {
+          char c = client.read();
+          body += c;
+          readLen++;
+        }
+      }
+      client.readStringUntil('\n');
+    }
+    error = deserializeJson(responseDoc, body,
+                            DeserializationOption::Filter(filter));
+  } else {
+    error = deserializeJson(responseDoc, client,
+                            DeserializationOption::Filter(filter));
+  }
+
+  String responseDebug;
+  serializeJson(responseDoc, responseDebug);
+  appLogger.log("--- Raw Anthropic Response ---");
+  appLogger.log(responseDebug);
 
   if (error) {
     Serial.print("LLM (Anthropic): JSON Parse Error: ");
@@ -219,7 +376,7 @@ String LLMClient::askAnthropic(const String &userMessage) {
     return String("Error parsing LLM response: ") + error.c_str();
   }
 
-  if (responseDoc.containsKey("error")) {
+  if (!responseDoc["error"].isNull()) {
     String errMsg = responseDoc["error"]["message"] | "Unknown API Error";
     return String("API Error: ") + errMsg;
   }
@@ -240,9 +397,9 @@ String LLMClient::askGemini(const String &userMessage) {
   client.setBufferSizes(2048, 1024);
 #endif
 
-  Serial.println("LLM: Connecting to generativelanguage.googleapis.com...");
+  appLogger.log("LLM: Connecting to generativelanguage.googleapis.com...");
   if (!client.connect("generativelanguage.googleapis.com", 443)) {
-    Serial.println("LLM: Connection failed!");
+    appLogger.log("LLM: Connection failed!");
     return "Error: Could not connect to Gemini API.";
   }
 
@@ -253,13 +410,14 @@ String LLMClient::askGemini(const String &userMessage) {
       requestDoc["systemInstruction"].to<JsonObject>();
   JsonObject sysParts =
       systemInstruction["parts"].to<JsonArray>().add<JsonObject>();
+  String haInstr = getHAInstructions();
   String finalPrompt = String(SYSTEM_PROMPT) +
                        "\n\nHardware Context: You are running on " +
                        String(BOARD_INFO) +
                        ". When controlling pins, ALWAYS use the integer "
                        "value inside the bracket tool! e.g., [GPIO_ON: 2]."
                        "\n\nUser Hardware Setup:\n" +
-                       String(USER_PINS);
+                       String(USER_PINS) + haInstr;
 
   sysParts["text"] = finalPrompt;
 
@@ -274,11 +432,18 @@ String LLMClient::askGemini(const String &userMessage) {
 
   String modelToUse = String(LLM_MODEL);
   if (modelToUse == "gpt-3.5-turbo") {
-    modelToUse = "gemini-3-flash-preview"; // Auto-correct default
+    modelToUse = "gemini-1.5-flash"; // Auto-correct default
   }
 
   String url = String("/v1beta/models/") + modelToUse +
                ":generateContent?key=" + OPENAI_API_KEY;
+
+  String curlCmd =
+      "curl https://generativelanguage.googleapis.com" + url + " \\\n";
+  curlCmd += "  -H \"Content-Type: application/json\" \\\n";
+  curlCmd += "  -d '" + requestBody + "'";
+  appLogger.log("\n--- Executing Gemini Request ---");
+  appLogger.log(curlCmd);
 
   client.print("POST ");
   client.print(url);
@@ -324,7 +489,7 @@ String LLMClient::askGemini(const String &userMessage) {
         break;
 
       size_t readLen = 0;
-      while (readLen < chunkSize && client.connected()) {
+      while (readLen < (size_t)chunkSize && client.connected()) {
         if (client.available()) {
           char c = client.read();
           body += c;
@@ -341,13 +506,18 @@ String LLMClient::askGemini(const String &userMessage) {
                             DeserializationOption::Filter(filter));
   }
 
+  String responseDebug;
+  serializeJson(responseDoc, responseDebug);
+  appLogger.log("--- Raw Gemini Response ---");
+  appLogger.log(responseDebug);
+
   if (error) {
     Serial.print("LLM (Gemini): JSON Parse Error: ");
     Serial.println(error.c_str());
     return String("Error parsing LLM response: ") + error.c_str();
   }
 
-  if (responseDoc.containsKey("error")) {
+  if (!responseDoc["error"].isNull()) {
     String errMsg = responseDoc["error"]["message"] | "Unknown API Error";
     return String("API Error: ") + errMsg;
   }
