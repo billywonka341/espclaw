@@ -3,7 +3,7 @@
 > **v2.4 Release Update (March 4, 2026)**
 > - 🏠 **Home Assistant Integration**: Natively control your Home Assistant devices or read sensor data directly via the LLM.
 > - 📡 **Sensor Pre-fetching**: Instantly read HA sensor states before the AI answers, giving it real-time context of your home.
-> - ![Home Assistant Setup settings](docs/assets/HA%20setup.png)
+> - 
 > - ![Home Assistant Setup Preview. Note: setup as sensor in this photo](docs/assets/HA%20setup%20preview.png)
 > - ![Home Assistant values preview in AI chat](docs/assets/HA%20chat%20preview.png)
 
